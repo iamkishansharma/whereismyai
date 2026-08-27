@@ -9,7 +9,6 @@ import {
   Dialog,
   Divider,
   Icon,
-  IconButton,
   List,
   Menu,
   Portal,
@@ -22,10 +21,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LegendList } from '@legendapp/list/react-native';
 import dayjs from 'dayjs';
 
-import useChatStore, {
+import {
+  useChatStore,
   useConversationOrder,
   useIsActiveConversation,
-} from '@/stores/chat-store';
+} from '@/features/chat';
 
 const ROW_HEIGHT = 56;
 
@@ -236,32 +236,34 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
 
       <Divider />
 
-      <List.Item
-        title="Kishan Sharma"
-        description="kishan@breakr.app"
-        onPress={openSettings}
-        left={props => (
-          <List.Image
-            {...props}
-            source={{
-              uri: 'https://avatars.githubusercontent.com/u/36340195?v=4',
-            }}
-            style={[
-              props.style,
-              styles.avatar,
-              { borderColor: colors.outlineVariant },
-            ]}
-          />
-        )}
-        right={props => (
-          <IconButton
-            {...props}
-            icon="cog-outline"
-            accessibilityLabel="Settings"
-            onPress={openSettings}
-          />
-        )}
-      />
+      <View
+        style={{
+          gap: 8,
+          alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          marginVertical: 16,
+          position: 'relative',
+        }}
+      >
+        <List.Item
+          style={{ flex: 1 }}
+          title="Settings"
+          onPress={openSettings}
+          left={props => <List.Icon {...props} icon="cog-outline" />}
+        />
+        <Button
+          style={{ position: 'absolute', right: 16 }}
+          mode="contained"
+          icon="plus"
+          accessibilityLabel="New Chat"
+          onPress={() => {
+            openConversation(undefined);
+          }}
+        >
+          New Chat
+        </Button>
+      </View>
 
       <Portal>
         <Dialog

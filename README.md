@@ -6,12 +6,16 @@
 
 ## ✨ Features
 
-* 🤖 Run open-source AI models locally
-* 📱 Supports iOS and Android
-* 🔒 Privacy-focused local inference
-* 📦 Download models directly on your device
-* ⚡ Designed for lightweight and efficient execution
-* 🌐 Use AI without relying on cloud inference
+- 🤖 Runs open-source GGUF models fully on-device via llama.cpp
+- 🖼️ Vision models — ask questions about a photo
+- 🔒 Nothing leaves the phone; works with no network once a model is downloaded
+- 📦 Curated model catalog plus Hugging Face search and downloads
+- 💬 Multiple conversations, per-conversation model and system prompt
+- ⚙️ Per-model generation settings
+- 📱 iOS and Android
+
+See **[FEATURES.md](FEATURES.md)** for the full list, including known limitations and
+what's planned.
 
 ## 📸 Screenshots
 
@@ -27,11 +31,11 @@
 
 ### Requirements
 
-* Node.js
-* Yarn
-* React Native development environment
-* Xcode for iOS
-* Android Studio for Android
+- Node.js
+- Yarn
+- React Native development environment
+- Xcode for iOS
+- Android Studio for Android
 
 ### Installation
 
@@ -80,16 +84,52 @@ Model support will expand over time as new runtimes and formats are added.
 | ----------- | -------------- |
 | More models | 🚧 Coming soon |
 
+## 🗂️ Project structure
+
+Organised by feature: everything a feature needs lives in one folder, and cross-feature
+imports go through that folder's `index.ts`.
+
+```
+source/
+  app/          root component, providers, database gate
+  features/
+    chat/       transcript, composer, chat store, prompt building
+    models/     catalog, Hugging Face search, downloads, model store
+    onboarding/ first-run carousel and starter model
+    settings/   theme and app preferences
+  core/         infrastructure with no feature knowledge
+    llama/      native context lifecycle, context-window fitting
+    db/         SQLite schema, drizzle migrations, chat repository
+    attachments/ image picking and on-disk storage
+    fs.ts       shared filesystem helpers
+  shared/       ui/ theme/ utils/ — reusable, feature-agnostic
+  navigation/   navigators, linking, route types
+  types/        domain vocabulary (chat, model, theme)
+```
+
+Two rules keep this honest: `core/` and `shared/` never import from `features/`, and
+store contracts live beside their store rather than in `types/`.
+
+### Checks
+
+`yarn verify` runs the whole gate — typecheck, lint (zero warnings), format check, tests.
+
+```bash
+yarn verify      # everything below, in order
+yarn typecheck   # tsc --noEmit
+yarn lint        # eslint, --max-warnings 0
+yarn format      # prettier --write .
+yarn test        # jest
+```
+
 ## 🤝 Contributing
 
 Contributions are welcome and appreciated.
 
-1. Fork the repository
-2. Create a new branch
-3. Make your changes
-4. Test your changes
-5. Commit and push your branch
-6. Open a Pull Request
+1. Fork the repository and create a branch
+2. Make your changes
+3. Run `yarn verify` — it must pass before you open a PR
+4. Commit, push, and open a Pull Request
 
 For larger changes, consider opening an issue first so we can discuss the idea.
 
@@ -99,12 +139,12 @@ Found a bug or have a problem?
 
 Please open an issue and include:
 
-* Device and OS version
-* Model being used
-* Steps to reproduce
-* Expected behavior
-* Actual behavior
-* Relevant logs or screenshots
+- Device and OS version
+- Model being used
+- Steps to reproduce
+- Expected behavior
+- Actual behavior
+- Relevant logs or screenshots
 
 ## 📄 License
 

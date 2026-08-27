@@ -6,6 +6,8 @@ const esmPackages = [
   '@gorhom.*',
   'remend',
   'use-sync-external-store',
+  '@op-engineering.*',
+  'react-native-uuid',
 ].join('|');
 
 module.exports = {
