@@ -1,0 +1,161 @@
+import { StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  IconButton,
+  List,
+  ProgressBar,
+  Text,
+  useTheme,
+} from 'react-native-paper';
+
+import useModelStore, { useDownloadTask } from '@/stores/model-store';
+import { formatBytes } from '@/utils/format';
+import type { ModelFile, ProjectorFile } from '@/types';
+
+interface ModelRowProps {
+  id: string;
+  name: string;
+  subtitle: string;
+  file: ModelFile & { mmproj?: ProjectorFile };
+  onPress?: () => void;
+}
+
+const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
+  const { colors } = useTheme();
+  const task = useDownloadTask(id);
+  const installed = useModelStore(state => state.installed[id]);
+  const isSelected = useModelStore(state => state.selectedModelId === id);
+
+  const startDownload = useModelStore(state => state.startDownload);
+  const cancelDownload = useModelStore(state => state.cancelDownload);
+  const selectModel = useModelStore(state => state.selectModel);
+
+  const totalBytes = file.sizeBytes + (file.mmproj?.sizeBytes ?? 0);
+
+  const ratio =
+    task && task.contentLength > 0
+      ? task.bytesWritten / task.contentLength
+      : undefined;
+
+  const description = task
+    ? task.status === 'failed'
+      ? (task.error ?? 'Download failed')
+      : `${formatBytes(task.bytesWritten)} of ${formatBytes(
+          task.contentLength || totalBytes,
+        )}`
+    : `${subtitle} · ${formatBytes(totalBytes)}`;
+
+  return (
+    <View>
+      <List.Item
+        title={name}
+        description={description}
+        titleNumberOfLines={1}
+        descriptionNumberOfLines={2}
+        descriptionStyle={
+          task?.status === 'failed' ? { color: colors.error } : undefined
+        }
+        onPress={installed && onPress ? onPress : undefined}
+        left={props =>
+          installed ? (
+            <List.Icon
+              {...props}
+              icon={isSelected ? 'check-circle' : 'circle-outline'}
+              color={isSelected ? colors.primary : colors.onSurfaceVariant}
+            />
+          ) : (
+            <List.Icon {...props} icon="cube-outline" />
+          )
+        }
+        right={() => {
+          if (task) {
+            return (
+              <View style={styles.trailing}>
+                {task.status === 'failed' ? (
+                  <IconButton
+                    icon="refresh"
+                    accessibilityLabel={`Retry ${name}`}
+                    onPress={() => {
+                      cancelDownload(id);
+                      startDownload({ ...file, id, name });
+                    }}
+                  />
+                ) : (
+                  <ActivityIndicator size={18} />
+                )}
+                <IconButton
+                  icon="close"
+                  accessibilityLabel={`Cancel ${name}`}
+                  onPress={() => cancelDownload(id)}
+                />
+              </View>
+            );
+          }
+
+          if (installed) {
+            return (
+              <View style={styles.trailing}>
+                {!isSelected && (
+                  <IconButton
+                    icon="check"
+                    accessibilityLabel={`Use ${name}`}
+                    onPress={() => selectModel(id)}
+                  />
+                )}
+                <IconButton
+                  icon="chevron-right"
+                  accessibilityLabel={`Details for ${name}`}
+                  onPress={onPress}
+                />
+              </View>
+            );
+          }
+
+          return (
+            <IconButton
+              icon="download"
+              accessibilityLabel={`Download ${name}`}
+              onPress={() => startDownload({ ...file, id, name })}
+            />
+          );
+        }}
+      />
+
+      {task && task.status !== 'failed' && (
+        <ProgressBar
+          progress={ratio ?? 0}
+          indeterminate={ratio === undefined}
+          style={styles.progress}
+        />
+      )}
+
+      {installed && isSelected && (
+        <Text
+          variant="labelSmall"
+          style={[styles.badge, { color: colors.primary }]}
+        >
+          Active model
+        </Text>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  trailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  progress: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    height: 3,
+    borderRadius: 2,
+  },
+  badge: {
+    marginLeft: 16,
+    marginBottom: 8,
+  },
+});
+
+export default ModelRow;

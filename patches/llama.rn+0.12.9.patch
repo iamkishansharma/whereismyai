@@ -1,0 +1,63 @@
+diff --git a/node_modules/llama.rn/ios/RNLlama.mm b/node_modules/llama.rn/ios/RNLlama.mm
+index 6039042..6959139 100644
+--- a/node_modules/llama.rn/ios/RNLlama.mm
++++ b/node_modules/llama.rn/ios/RNLlama.mm
+@@ -18,6 +18,12 @@
+ #import "RNLlamaSpec.h"
+ #endif
+ 
++#import <React/RCTLog.h>
++
++@protocol RNLlamaRuntimeProvider <NSObject>
++- (void *)runtime;
++@end
++
+ namespace rnllama_jsi {
+ std::string resolveIosModelPath(const std::string& path, bool isAsset) {
+     if (!isAsset) {
+@@ -96,27 +102,32 @@ - (void)setBridge:(RCTBridge *)bridge {
+         return;
+     }
+ 
+-    RCTCxxBridge *cxxBridge = (RCTCxxBridge *)bridge.batchedBridge;
+-    if (!cxxBridge) {
+-        cxxBridge = (RCTCxxBridge *)bridge;
+-    }
+-    auto callInvoker = cxxBridge.jsCallInvoker ?: bridge.jsCallInvoker;
+-    if (!cxxBridge.runtime) {
++    // RCTCxxBridge (which exposed `.runtime`) was removed in React Native
++    // 0.87. In bridgeless mode `bridge` is an RCTBridgeProxy (an NSProxy)
++    // that implements `-(void *)runtime` directly. Both -respondsToSelector:
++    // and -methodSignatureForSelector: give false negatives on that NSProxy,
++    // so call it directly and guard with an exception handler.
++    facebook::jsi::Runtime *jsiRuntime = nullptr;
++    @try {
++        id<RNLlamaRuntimeProvider> provider = (id<RNLlamaRuntimeProvider>)bridge;
++        jsiRuntime = (facebook::jsi::Runtime *)[provider runtime];
++    } @catch (NSException *exception) {
++        RCTLogError(@"[llama.rn] Could not obtain the JSI runtime: %@", exception);
+         resolve(@false);
+         return;
+     }
+ 
+-    facebook::jsi::Runtime *runtime = static_cast<facebook::jsi::Runtime *>(cxxBridge.runtime);
+-
+-    if (callInvoker) {
+-        callInvoker->invokeAsync([runtime, callInvoker]() {
+-            rnllama_jsi::installJSIBindings(*runtime, callInvoker);
+-        });
+-    } else {
++    auto callInvoker = bridge.jsCallInvoker;
++    if (jsiRuntime == nullptr || !callInvoker) {
+         resolve(@false);
+         return;
+     }
+ 
++    facebook::jsi::Runtime *runtime = jsiRuntime;
++    callInvoker->invokeAsync([runtime, callInvoker]() {
++        rnllama_jsi::installJSIBindings(*runtime, callInvoker);
++    });
++
+     resolve(@true);
+ }
+ 
