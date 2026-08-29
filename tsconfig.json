@@ -5,6 +5,9 @@
   "compilerOptions": {
     "paths": {
       "@/*": ["./source/*"]
-    }
+    },
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
   }
 }

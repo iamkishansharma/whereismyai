@@ -55,5 +55,7 @@ for (let attempt = 0; attempt < 2; attempt += 1) {
 
 fs.rmSync(out, { force: true });
 console.log(
-  isWarm() ? 'worklets: warmed' : 'worklets: warm failed (release builds may fail)',
+  isWarm()
+    ? 'worklets: warmed'
+    : 'worklets: warm failed (release builds may fail)',
 );
