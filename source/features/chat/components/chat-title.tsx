@@ -1,4 +1,4 @@
-import { StyleSheet } from 'react-native';
+import { Platform, StyleSheet } from 'react-native';
 import { Text } from 'react-native-paper';
 
 import { useConversationTitle } from '@/features/chat/store';
@@ -7,7 +7,7 @@ const ChatTitle = ({ conversationId }: { conversationId?: string }) => {
   const title = useConversationTitle(conversationId);
 
   return (
-    <Text variant="titleMedium" numberOfLines={1} style={styles.title}>
+    <Text numberOfLines={1} style={styles.title}>
       {title}
     </Text>
   );
@@ -16,8 +16,13 @@ const ChatTitle = ({ conversationId }: { conversationId?: string }) => {
 const styles = StyleSheet.create({
   title: {
     maxWidth: 220,
-    fontWeight: '600',
+    fontWeight: Platform.select({ ios: 'bold', default: 'medium' }),
     textAlign: 'center',
+    fontSize: Platform.select({
+      ios: 17,
+      android: 20,
+      default: 18,
+    }),
   },
 });
 

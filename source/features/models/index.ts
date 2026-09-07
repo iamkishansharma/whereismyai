@@ -3,6 +3,7 @@
  * why the stores import each other by path rather than through here.
  */
 export { default as ModelRow } from './components/model-row';
+export { default as ModelPickerSheet } from './components/model-picker-sheet';
 export * from './screens';
 export { CATALOG, STARTER_MODEL, VISION_CATALOG } from './catalog';
 export {
@@ -16,3 +17,4 @@ export {
   useSettings,
 } from './store';
 export { useEffectiveModel } from './use-effective-model';
+export { closeModelPicker, openModelPicker } from './use-model-picker';

@@ -17,6 +17,7 @@ import {
   MessageRow,
   type ChatComposerHandle,
 } from '@/features/chat/components';
+import { ModelPickerSheet } from '@/features/models';
 import useChatStore, {
   useConversationMessageIds,
   useIsStreaming,
@@ -143,6 +144,10 @@ const Chat = ({ navigation, route }: ChatScreenProps) => {
           isStreaming={isStreaming}
         />
       </KeyboardStickyView>
+
+      {/* One instance for the whole screen — the composer, the welcome card
+          and the stack header all open this same sheet. */}
+      <ModelPickerSheet />
     </>
   );
 };

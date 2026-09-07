@@ -1,5 +1,5 @@
 import { memo } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, TouchableOpacity, View } from 'react-native';
 import {
   ActivityIndicator,
   IconButton,
@@ -53,6 +53,10 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
   return (
     <View>
       <List.Item
+        style={{
+          backgroundColor:
+            installed && isSelected ? colors.surfaceVariant : undefined,
+        }}
         title={name}
         description={description}
         titleNumberOfLines={1}
@@ -63,11 +67,20 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
         onPress={installed && onPress ? onPress : undefined}
         left={props =>
           installed ? (
-            <List.Icon
+            <TouchableOpacity
+              activeOpacity={0.7}
               {...props}
-              icon={isSelected ? 'check-circle' : 'circle-outline'}
-              color={isSelected ? colors.primary : colors.onSurfaceVariant}
-            />
+              onPress={() => {
+                if (!isSelected && installed) {
+                  chooseModel(id);
+                }
+              }}
+            >
+              <List.Icon
+                icon={isSelected ? 'check-circle' : 'circle-outline'}
+                color={isSelected ? colors.primary : colors.onSurfaceVariant}
+              />
+            </TouchableOpacity>
           ) : (
             <List.Icon {...props} icon="cube-outline" />
           )
@@ -132,15 +145,6 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
           indeterminate={ratio === undefined}
           style={styles.progress}
         />
-      )}
-
-      {installed && isSelected && (
-        <Text
-          variant="labelSmall"
-          style={[styles.badge, { color: colors.primary }]}
-        >
-          Active model
-        </Text>
       )}
     </View>
   );

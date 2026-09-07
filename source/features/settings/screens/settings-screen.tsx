@@ -1,16 +1,10 @@
 import { Alert, ScrollView, StyleSheet } from 'react-native';
-import {
-  Divider,
-  List,
-  SegmentedButtons,
-  Switch,
-  Text,
-  useTheme,
-} from 'react-native-paper';
+import { Chip, Divider, List, Menu, Text, useTheme } from 'react-native-paper';
 
 import useSettingsStore, { useThemeMode } from '../store';
 import useChatStore from '@/features/chat/store';
 import type { ThemeMode } from '@/types';
+import { useState } from 'react';
 
 const THEME_MODES: { value: ThemeMode; label: string }[] = [
   { value: 'system', label: 'System' },
@@ -21,12 +15,14 @@ const THEME_MODES: { value: ThemeMode; label: string }[] = [
 const Settings = () => {
   const { colors } = useTheme();
   const [themeMode, setThemeMode] = useThemeMode();
-  const themeColor = useSettingsStore(state => state.themeColor);
-  const setThemeColor = useSettingsStore(state => state.setThemeColor);
+  // const themeColor = useSettingsStore(state => state.themeColor);
+  // const setThemeColor = useSettingsStore(state => state.setThemeColor);
   const setShowOnboarding = useSettingsStore(state => state.setShowOnboarding);
 
   const conversationOrder = useChatStore(state => state.conversationOrder);
   const deleteConversation = useChatStore(state => state.deleteConversation);
+
+  const [showMenu, setShowMenu] = useState(false);
 
   const clearAll = () =>
     Alert.alert('Delete all conversations?', 'This cannot be undone.', [
@@ -46,29 +42,47 @@ const Settings = () => {
     >
       <List.Section>
         <List.Subheader>Appearance</List.Subheader>
-        <SegmentedButtons
-          style={{ marginHorizontal: 16 }}
-          value={themeMode}
-          onValueChange={value => setThemeMode(value as ThemeMode)}
-          buttons={THEME_MODES.map(mode => ({
-            value: mode.value,
-            label: mode.label,
-            icon:
-              mode.value === 'system'
-                ? 'cellphone'
-                : mode.value === 'light'
-                ? 'white-balance-sunny'
-                : 'weather-night',
-          }))}
-        />
-      </List.Section>
-
-      <Divider />
-
-      <List.Section>
-        <List.Subheader>Colour</List.Subheader>
-
         <List.Item
+          title="Theme Mode"
+          description={themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}
+          left={props => <List.Icon {...props} icon="theme-light-dark" />}
+          right={props => (
+            <Menu
+              visible={showMenu}
+              onDismiss={() => setShowMenu(false)}
+              anchor={
+                <Chip onPress={() => setShowMenu(true)} {...props}>
+                  {themeMode.charAt(0).toUpperCase() + themeMode.slice(1)}
+                </Chip>
+              }
+              contentStyle={{ borderRadius: 20 }}
+              anchorPosition="bottom"
+            >
+              {THEME_MODES.map(mode => (
+                <Menu.Item
+                  key={mode.value}
+                  leadingIcon={
+                    mode.value === 'system'
+                      ? 'cellphone'
+                      : mode.value === 'light'
+                      ? 'white-balance-sunny'
+                      : 'weather-night'
+                  }
+                  onPress={() => {
+                    setThemeMode(mode.value);
+                    setShowMenu(false);
+                  }}
+                  title={mode.label}
+                />
+              ))}
+            </Menu>
+          )}
+          onPress={() => {
+            setShowMenu(true);
+          }}
+        />
+
+        {/* <List.Item
           title="Monochrome"
           description={
             themeColor === 'monochrome'
@@ -85,7 +99,7 @@ const Settings = () => {
               {...props}
             />
           )}
-        />
+        /> */}
       </List.Section>
 
       <Divider />

@@ -52,49 +52,51 @@ const ChatWelcome = () => {
         entering={FadeInDown.delay(180).duration(420)}
         style={styles.cardWrap}
       >
-        <TouchableRipple
-          onPress={() =>
-            navigation.navigate(selectedModel ? 'ModelPicker' : 'ModelLibrary')
-          }
-          style={[
-            styles.card,
-            {
-              backgroundColor: colors.surface,
-              borderColor: selectedModel
-                ? colors.outlineVariant
-                : colors.primary,
-              display: selectedModel ? 'none' : 'flex',
-            },
-          ]}
-          accessibilityLabel={
-            selectedModel ? 'Change model' : 'Choose a model to get started'
-          }
-        >
-          <View style={styles.cardRow}>
-            <Icon
-              source={selectedModel ? 'cube-outline' : 'download-outline'}
-              size={22}
-              color={selectedModel ? colors.onSurfaceVariant : colors.primary}
-            />
-            <View style={styles.cardText}>
-              <Text variant="titleSmall" numberOfLines={1}>
-                {selectedModel?.name ?? 'Choose a model'}
-              </Text>
-              <Text
-                variant="bodySmall"
-                style={{ color: colors.onSurfaceVariant }}
-                numberOfLines={1}
-              >
-                {status}
-              </Text>
+        {!selectedModel && (
+          <TouchableRipple
+            // This card only renders with no model installed, so the library
+            // is the only useful destination.
+            onPress={() => navigation.navigate('ModelLibrary')}
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.surface,
+                borderColor: selectedModel
+                  ? colors.outlineVariant
+                  : colors.primary,
+              },
+            ]}
+            accessibilityLabel={
+              selectedModel ? 'Change model' : 'Choose a model to get started'
+            }
+          >
+            <View style={styles.cardRow}>
+              <Icon
+                source={selectedModel ? 'cube-outline' : 'download-outline'}
+                size={22}
+                color={selectedModel ? colors.onSurfaceVariant : colors.primary}
+              />
+              <View style={styles.cardText}>
+                <Text variant="titleSmall" numberOfLines={1}>
+                  {/* @ts-ignore */}
+                  {selectedModel?.name ?? 'Choose a model'}
+                </Text>
+                <Text
+                  variant="bodySmall"
+                  style={{ color: colors.onSurfaceVariant }}
+                  numberOfLines={1}
+                >
+                  {status}
+                </Text>
+              </View>
+              <Icon
+                source="chevron-right"
+                size={20}
+                color={colors.onSurfaceVariant}
+              />
             </View>
-            <Icon
-              source="chevron-right"
-              size={20}
-              color={colors.onSurfaceVariant}
-            />
-          </View>
-        </TouchableRipple>
+          </TouchableRipple>
+        )}
       </Animated.View>
     </View>
   );

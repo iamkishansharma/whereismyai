@@ -13,6 +13,16 @@ const entries: Omit<CatalogModel, 'id'>[] = [
     blurb: 'Very small local model. Good for testing and low-end devices.',
   },
   {
+    name: 'LFM2 350M Extract',
+    publisher: 'Liquid AI',
+    repo: 'LiquidAI/LFM2-350M-Extract-GGUF',
+    filename: 'LFM2-350M-Extract-Q4_K_M.gguf',
+    sizeBytes: 229310080,
+    params: '350M',
+    quant: 'Q4_K_M',
+    blurb: 'Tiny text model specialized for structured data extraction.',
+  },
+  {
     name: 'Qwen2.5 0.5B Instruct',
     publisher: 'Qwen',
     repo: 'Qwen/Qwen2.5-0.5B-Instruct-GGUF',
