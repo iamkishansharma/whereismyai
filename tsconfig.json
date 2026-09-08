@@ -4,7 +4,16 @@
   "exclude": ["**/node_modules", "**/Pods"],
   "compilerOptions": {
     "paths": {
-      "@/*": ["./source/*"]
+      "@/*": ["./source/*"],
+      // whisper.rn's `react-native` export condition points at its raw
+      // `src/*.ts`, which is what Metro should bundle but makes tsc type-check
+      // the library itself (it references `global`/`process` without Node
+      // types). Aim TypeScript at the shipped declarations instead; Metro is
+      // unaffected because it never reads tsconfig paths.
+      "whisper.rn": ["./node_modules/whisper.rn/lib/typescript/index.d.ts"],
+      "whisper.rn/realtime-transcription/index": [
+        "./node_modules/whisper.rn/lib/typescript/realtime-transcription/index.d.ts"
+      ]
     },
     "noUnusedLocals": true,
     "noUnusedParameters": true,

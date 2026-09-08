@@ -13,8 +13,18 @@ import { buildDownloadUrl } from './huggingface';
 
 export const MODEL_DIR = `${DocumentDirectoryPath}/${MODEL_DIR_NAME}`;
 
+/**
+ * Where a downloaded file lives, by extension.
+ *
+ * Whisper models are GGML `.bin` rather than GGUF. Both loaders sniff the
+ * file's magic, so the suffix is only there for a human reading the directory.
+ */
+export function assetPath(modelId: string, extension: string): string {
+  return `${MODEL_DIR}/${modelId}${extension}`;
+}
+
 export function modelPath(modelId: string): string {
-  return `${MODEL_DIR}/${modelId}.gguf`;
+  return assetPath(modelId, '.gguf');
 }
 
 export function projectorPath(modelId: string): string {

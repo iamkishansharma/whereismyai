@@ -8,6 +8,9 @@ const esmPackages = [
   'use-sync-external-store',
   '@op-engineering.*',
   'react-native-uuid',
+  // whisper.rn's `exports` map resolves the `react-native` condition to raw
+  // `src/*.ts`, so Jest has to transform it rather than skip it.
+  'whisper.rn',
 ].join('|');
 
 module.exports = {

@@ -38,6 +38,39 @@ jest.mock('llama.rn', () => ({
   RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER: '<__media__>',
 }));
 
+// Ships a first-party mock, so there is nothing to hand-roll here.
+jest.mock('react-native-audio-api', () =>
+  require('react-native-audio-api/mock'),
+);
+
+// Mocked virtually: whisper.rn 0.7.4 declares `exports` with only "./*" and
+// no "." entry, so the bare specifier is unresolvable to Jest's strict
+// resolver. Metro falls back to `main` and loads it fine at runtime.
+jest.mock(
+  'whisper.rn',
+  () => ({
+    initWhisper: jest.fn(),
+    initWhisperVad: jest.fn(),
+    releaseAllWhisper: jest.fn(async () => {}),
+    releaseAllWhisperVad: jest.fn(async () => {}),
+  }),
+  { virtual: true },
+);
+
+jest.mock(
+  'whisper.rn/realtime-transcription/index',
+  () => ({
+    RealtimeTranscriber: jest.fn(() => ({
+      start: jest.fn(async () => {}),
+      stop: jest.fn(async () => {}),
+      release: jest.fn(async () => {}),
+      updateCallbacks: jest.fn(),
+    })),
+    RingBufferVad: jest.fn(),
+  }),
+  { virtual: true },
+);
+
 jest.mock('@dr.pogodin/react-native-fs', () => ({
   DocumentDirectoryPath: '/tmp',
   copyFile: jest.fn(async () => {}),

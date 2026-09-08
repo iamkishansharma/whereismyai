@@ -6,6 +6,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { DEFAULT_GENERATION_SETTINGS } from './constants';
 import { fileExists, removeFile } from '@/core/fs';
 import {
+  assetPath,
   cancelModelDownload,
   modelPath,
   projectorPath,
@@ -18,9 +19,11 @@ import type {
   EngineState,
   GenerationSettings,
   InstalledModel,
+  InstalledVoiceAsset,
   ModelFile,
   ModelInfo,
   ProjectorFile,
+  VoiceAsset,
 } from '@/types';
 
 interface ModelStore {
@@ -30,6 +33,12 @@ interface ModelStore {
   downloads: Record<string, DownloadTask>;
   /** Only the keys the user overrode; everything else is derived per model. */
   settingsByModel: Record<string, Partial<GenerationSettings>>;
+  /**
+   * Speech, VAD, TTS and vocoder files, kept apart from `installed` on purpose:
+   * everything in there is assumed loadable by `initLlama` as a chat model, and
+   * a whisper `.bin` would sail through the picker and fail on first use.
+   */
+  voiceInstalled: Record<string, InstalledVoiceAsset>;
 
   engineState: EngineState;
   engineError?: string;
@@ -41,6 +50,9 @@ interface ModelStore {
   ) => void;
   cancelDownload: (modelId: string) => void;
   deleteModel: (modelId: string) => Promise<void>;
+  startVoiceDownload: (asset: VoiceAsset) => void;
+  deleteVoiceAsset: (assetId: string) => Promise<void>;
+  getVoiceAsset: (assetId: string) => InstalledVoiceAsset | undefined;
   selectModel: (modelId?: string) => void;
   ensureModelInfo: (modelId: string) => Promise<void>;
   setModelInfo: (modelId: string, info: ModelInfo) => void;
@@ -79,6 +91,7 @@ const useModelStore = create<ModelStore>()(
       selectedModelId: undefined,
       downloads: {},
       settingsByModel: {},
+      voiceInstalled: {},
       engineState: 'idle',
       engineError: undefined,
       loadProgress: 0,
@@ -208,6 +221,111 @@ const useModelStore = create<ModelStore>()(
           });
       },
 
+      /**
+       * Fetch one voice file.
+       *
+       * Deliberately reuses the same `downloads` map as chat models — ids are
+       * globally unique via `modelIdFor`, so `useDownloadTask` and the progress
+       * bar work on a voice row without changes. Unlike `startDownload` it is a
+       * single part and never touches `selectedModelId`: installing a voice for
+       * the assistant must not change which model answers.
+       */
+      startVoiceDownload: asset => {
+        const { downloads, voiceInstalled } = get();
+        if (downloads[asset.id] || voiceInstalled[asset.id]) {
+          return;
+        }
+
+        set(state => ({
+          downloads: {
+            ...state.downloads,
+            [asset.id]: {
+              modelId: asset.id,
+              bytesWritten: 0,
+              contentLength: asset.sizeBytes,
+              status: 'queued',
+            },
+          },
+        }));
+
+        const patch = (partial: Partial<DownloadTask>) =>
+          set(state => {
+            const task = state.downloads[asset.id];
+            if (!task) {
+              return state;
+            }
+            return {
+              downloads: {
+                ...state.downloads,
+                [asset.id]: { ...task, ...partial },
+              },
+            };
+          });
+
+        const target = assetPath(asset.id, asset.extension);
+
+        startModelDownload({
+          target,
+          repo: asset.repo,
+          filename: asset.filename,
+          onBegin: jobId => patch({ jobId, status: 'downloading' }),
+          onProgress: bytesWritten =>
+            patch({ bytesWritten, contentLength: asset.sizeBytes }),
+        })
+          .then(path => {
+            const entry: InstalledVoiceAsset = {
+              ...asset,
+              path,
+              downloadedAt: Date.now(),
+            };
+            set(state => {
+              const remaining = { ...state.downloads };
+              delete remaining[asset.id];
+              return {
+                downloads: remaining,
+                voiceInstalled: {
+                  ...state.voiceInstalled,
+                  [asset.id]: entry,
+                },
+              };
+            });
+          })
+          .catch(error => {
+            void removeFile(target);
+            const message = describeError(error);
+            if (message.includes('aborted') || message.includes('cancel')) {
+              set(state => {
+                const remaining = { ...state.downloads };
+                delete remaining[asset.id];
+                return { downloads: remaining };
+              });
+              return;
+            }
+            patch({ status: 'failed', error: message });
+          });
+      },
+
+      /**
+       * Remove a voice file from disk.
+       *
+       * Callers are expected to have stopped any voice session first — nothing
+       * here can tell whether whisper or the vocoder still holds the file open.
+       */
+      deleteVoiceAsset: async assetId => {
+        const asset = get().voiceInstalled[assetId];
+        if (!asset) {
+          return;
+        }
+        await removeFile(asset.path);
+        set(state => {
+          const voiceInstalled = { ...state.voiceInstalled };
+          delete voiceInstalled[assetId];
+          return { voiceInstalled };
+        });
+      },
+
+      getVoiceAsset: assetId => get().voiceInstalled[assetId],
+
       cancelDownload: modelId => {
         const task = get().downloads[modelId];
         if (task?.jobId !== undefined) {
@@ -333,7 +451,7 @@ const useModelStore = create<ModelStore>()(
       setLoadProgress: loadProgress => set({ loadProgress }),
 
       pruneMissingModels: async () => {
-        const { installed } = get();
+        const { installed, voiceInstalled } = get();
         const missing: string[] = [];
 
         for (const model of Object.values(installed)) {
@@ -343,6 +461,23 @@ const useModelStore = create<ModelStore>()(
           if (!present) {
             missing.push(model.id);
           }
+        }
+
+        // Voice files live in the same directory and vanish the same ways —
+        // an OS cleanup, a restore onto a new device, a manual delete.
+        const missingVoice: string[] = [];
+        for (const asset of Object.values(voiceInstalled)) {
+          if (!(await fileExists(asset.path))) {
+            missingVoice.push(asset.id);
+          }
+        }
+
+        if (missingVoice.length) {
+          set(state => {
+            const next = { ...state.voiceInstalled };
+            missingVoice.forEach(id => delete next[id]);
+            return { voiceInstalled: next };
+          });
         }
 
         if (!missing.length) {
@@ -374,6 +509,7 @@ const useModelStore = create<ModelStore>()(
         installedOrder: state.installedOrder,
         selectedModelId: state.selectedModelId,
         settingsByModel: state.settingsByModel,
+        voiceInstalled: state.voiceInstalled,
       }),
       onRehydrateStorage: () => rehydrated => {
         void rehydrated?.pruneMissingModels();
@@ -397,6 +533,12 @@ export const useSelectedModel = () =>
 
 export const useDownloadTask = (modelId: string) =>
   useModelStore(state => state.downloads[modelId]);
+
+export const useVoiceInstalled = () =>
+  useModelStore(state => state.voiceInstalled);
+
+export const useInstalledVoiceAsset = (assetId?: string) =>
+  useModelStore(state => (assetId ? state.voiceInstalled[assetId] : undefined));
 
 export const useEngineState = () => useModelStore(state => state.engineState);
 

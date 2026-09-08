@@ -68,3 +68,29 @@ export interface GenerationSettings {
 }
 
 export type EngineState = 'idle' | 'loading' | 'ready' | 'error';
+
+/**
+ * What a voice file is for. Speech recognition, the speech/silence detector,
+ * the text-to-speech model, and the vocoder that turns its tokens into sound.
+ */
+export type VoiceAssetRole = 'speech' | 'vad' | 'tts' | 'vocoder';
+
+/**
+ * A downloadable file that supports voice rather than chat.
+ *
+ * Kept apart from {@link CatalogModel} because these are never loadable as a
+ * chat model: whisper ships GGML `.bin`, and the TTS pair only means anything
+ * to the vocoder API.
+ */
+export interface VoiceAsset extends ModelFile {
+  id: string;
+  name: string;
+  role: VoiceAssetRole;
+  extension: '.gguf' | '.bin';
+  blurb: string;
+}
+
+export interface InstalledVoiceAsset extends VoiceAsset {
+  path: string;
+  downloadedAt: number;
+}

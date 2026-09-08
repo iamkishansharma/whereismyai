@@ -5,7 +5,6 @@ import {
   IconButton,
   List,
   ProgressBar,
-  Text,
   useTheme,
 } from 'react-native-paper';
 

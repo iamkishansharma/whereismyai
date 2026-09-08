@@ -1,0 +1,40 @@
+diff --git a/node_modules/react-native-audio-api/scripts/validate-worklets-version.js b/node_modules/react-native-audio-api/scripts/validate-worklets-version.js
+--- a/node_modules/react-native-audio-api/scripts/validate-worklets-version.js
++++ b/node_modules/react-native-audio-api/scripts/validate-worklets-version.js
+@@ -1,8 +1,24 @@
+ 'use strict';
+ 
+ const semverGte = require('semver/functions/gte');
++const semverLt = require('semver/functions/lt');
+ 
+ const MIN_WORKLETS_VERSION = '0.6.0';
++// PATCHED FOR whereismyai. The worklets bridge in react-native-audio-api
++// 0.13.3 calls `worklets::WorkletRuntime::executeSync`, which was removed in
++// react-native-worklets 0.12 (the line Reanimated 4.6 pins). Compiling it
++// against 0.12.x fails outright:
++//
++//   WorkletsRunner.cpp:18:18: error: no member named 'executeSync' in
++//   'worklets::WorkletRuntime'
++//
++// We use AudioContext, AudioBuffer(Queue)SourceNode, AudioRecorder and
++// AudioManager but never WorkletNode/WorkletSourceNode/WorkletProcessingNode,
++// so turning the bridge off costs us nothing. Both platforms gate on this
++// script's exit code (scripts/rnaa_utils.rb, android/build.gradle), so the
++// upper bound disables it everywhere from one place. Drop this patch once
++// react-native-audio-api supports worklets 0.12+.
++const MAX_WORKLETS_VERSION_EXCLUSIVE = '0.12.0';
+ 
+ 
+ /**
+@@ -18,7 +34,10 @@
+     return false;
+   }
+ 
+-  return semverGte(workletsVersion, MIN_WORKLETS_VERSION);
++  return (
++    semverGte(workletsVersion, MIN_WORKLETS_VERSION) &&
++    semverLt(workletsVersion, MAX_WORKLETS_VERSION_EXCLUSIVE)
++  );
+ }
+ 
+ if (!validateVersion()) {

@@ -35,10 +35,7 @@ import { ChatStackNavigation } from '@/navigation/chat-navigator';
 import { isIOS } from '@/shared/utils';
 import useModelStore, { useInstalledOrder } from '@/features/models/store';
 import { useEffectiveModel } from '@/features/models/use-effective-model';
-import {
-  closeModelPicker,
-  openModelPicker,
-} from '@/features/models/use-model-picker';
+import { openModelPicker } from '@/features/models/use-model-picker';
 import { capturePhoto, pickFromLibrary } from '@/core/attachments';
 import { deleteAttachments } from '@/core/attachments';
 import AttachmentStrip from './attachment-strip';

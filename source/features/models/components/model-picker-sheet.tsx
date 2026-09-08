@@ -1,13 +1,6 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
-import {
-  Divider,
-  Icon,
-  IconButton,
-  List,
-  Text,
-  useTheme,
-} from 'react-native-paper';
+import { Divider, Icon, List, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';

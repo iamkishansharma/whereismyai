@@ -22,6 +22,8 @@
 	<string>Attach photos to a chat so the model can look at them. Images stay on this device.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Take a photo to ask the model about it. Images stay on this device.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Speak to the model instead of typing. Your voice is transcribed on this device and never leaves it.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
