@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import {
   ActivityIndicator,
@@ -23,9 +29,16 @@ import {
   searchGgufRepos,
 } from '@/features/models/huggingface';
 import useModelStore, { useInstalledOrder } from '@/features/models/store';
-import type { HfRepo } from '@/types';
+import VoiceModelRow from '@/features/voice/components/voice-model-row';
+import {
+  SPEECH_CATALOG,
+  VAD_ASSET,
+  VOICE_OUTPUT_ASSETS,
+  VOICE_OUTPUT_BYTES,
+} from '@/features/voice/catalog';
+import type { HfRepo, VoiceAssetRole } from '@/types';
 import type { ModelLibraryScreenProps } from '@/navigation/types';
-import { formatCount } from '@/shared/utils/format';
+import { formatBytes, formatCount } from '@/shared/utils/format';
 
 type Tab = 'installed' | 'recommended' | 'search';
 
@@ -50,11 +63,21 @@ const EmptyState = ({ icon, text }: { icon: string; text: string }) => {
   );
 };
 
+/** Plain-language labels so a mixed list says what each file is actually for. */
+const ROLE_LABELS: Record<VoiceAssetRole, string> = {
+  speech: 'Speech to text',
+  vad: 'Speech to text · detector',
+  tts: 'Text to speech',
+  vocoder: 'Text to speech · vocoder',
+};
+
 const InstalledTab = ({ onOpen }: { onOpen: (modelId: string) => void }) => {
   const order = useInstalledOrder();
   const installed = useModelStore(state => state.installed);
+  const voiceInstalled = useModelStore(state => state.voiceInstalled);
+  const voiceAssets = Object.values(voiceInstalled);
 
-  if (!order.length) {
+  if (!order.length && !voiceAssets.length) {
     return (
       <EmptyState
         icon="cube-outline"
@@ -78,10 +101,44 @@ const InstalledTab = ({ onOpen }: { onOpen: (modelId: string) => void }) => {
             subtitle={model.repo.split('/')[0]}
             file={model}
             onPress={() => onOpen(id)}
+            badge={model.mmprojPath ? 'Chat · Reads images' : 'Chat'}
           />
         );
       })}
+
+      {voiceAssets.length > 0 && (
+        <>
+          <List.Subheader>Voice</List.Subheader>
+          {voiceAssets.map(asset => (
+            <View key={asset.id}>
+              <VoiceModelRow
+                asset={asset}
+                selectable={asset.role === 'speech'}
+              />
+              <VoiceRoleBadge role={asset.role} />
+            </View>
+          ))}
+        </>
+      )}
     </>
+  );
+};
+
+const VoiceRoleBadge = ({ role }: { role: VoiceAssetRole }) => {
+  const { colors } = useTheme();
+  return (
+    <Text
+      variant="labelSmall"
+      style={[
+        styles.roleBadge,
+        {
+          backgroundColor: colors.secondaryContainer,
+          color: colors.onSecondaryContainer,
+        },
+      ]}
+    >
+      {ROLE_LABELS[role]}
+    </Text>
   );
 };
 
@@ -110,8 +167,35 @@ const RecommendedTab = ({ onOpen }: { onOpen: (modelId: string) => void }) => (
         onPress={() => onOpen(model.id)}
       />
     ))}
+
+    <List.Subheader>Speech to text — dictation and voice chat</List.Subheader>
+    {SPEECH_CATALOG.map(asset => (
+      <VoiceModelRow key={asset.id} asset={asset} selectable />
+    ))}
+    <VoiceModelRow asset={VAD_ASSET} />
+
+    <List.Subheader>Text to speech — the assistant's voice</List.Subheader>
+    <VoiceNote>
+      Both files are needed to speak, {formatBytes(VOICE_OUTPUT_BYTES)}{' '}
+      together.
+    </VoiceNote>
+    {VOICE_OUTPUT_ASSETS.map(asset => (
+      <VoiceModelRow key={asset.id} asset={asset} />
+    ))}
   </>
 );
+
+const VoiceNote = ({ children }: { children: ReactNode }) => {
+  const { colors } = useTheme();
+  return (
+    <Text
+      variant="labelSmall"
+      style={[styles.voiceNote, { color: colors.onSurfaceVariant }]}
+    >
+      {children}
+    </Text>
+  );
+};
 
 const RepoFiles = ({ repo }: { repo: string }) => {
   const { colors } = useTheme();
@@ -337,6 +421,19 @@ const styles = StyleSheet.create({
   inlineLoader: {
     paddingVertical: 24,
     alignItems: 'center',
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    marginLeft: 16,
+    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  voiceNote: {
+    marginHorizontal: 16,
+    marginBottom: 4,
   },
   note: {
     marginTop: 16,

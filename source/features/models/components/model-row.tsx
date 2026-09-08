@@ -5,6 +5,7 @@ import {
   IconButton,
   List,
   ProgressBar,
+  Text,
   useTheme,
 } from 'react-native-paper';
 
@@ -20,9 +21,18 @@ interface ModelRowProps {
   subtitle: string;
   file: ModelFile & { mmproj?: ProjectorFile };
   onPress?: () => void;
+  /** What this model is for, e.g. "Chat" — shown so mixed lists stay legible. */
+  badge?: string;
 }
 
-const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
+const ModelRow = ({
+  id,
+  name,
+  subtitle,
+  file,
+  onPress,
+  badge,
+}: ModelRowProps) => {
   const { colors } = useTheme();
   const task = useDownloadTask(id);
   const installed = useModelStore(state => state.installed[id]);
@@ -138,6 +148,21 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
         }}
       />
 
+      {badge && !task && (
+        <Text
+          variant="labelSmall"
+          style={[
+            styles.badge,
+            {
+              backgroundColor: colors.secondaryContainer,
+              color: colors.onSecondaryContainer,
+            },
+          ]}
+        >
+          {badge}
+        </Text>
+      )}
+
       {task && task.status !== 'failed' && (
         <ProgressBar
           progress={ratio ?? 0}
@@ -161,8 +186,13 @@ const styles = StyleSheet.create({
     borderRadius: 2,
   },
   badge: {
+    alignSelf: 'flex-start',
     marginLeft: 16,
     marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
   },
 });
 

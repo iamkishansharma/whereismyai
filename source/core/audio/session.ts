@@ -65,9 +65,14 @@ export function configureVoiceSession(): void {
  * routes and ducks audio the composer's mic button has no business touching.
  */
 export function configureDictationSession(): void {
+  // `default` rather than `measurement`: measurement mode turns off the input
+  // processing chain, and on some devices — the Simulator especially — that
+  // leaves AVAudioEngine unable to resolve an input format at all, which
+  // surfaces only as a bare "Failed to start native recorder". Whisper copes
+  // with processed audio perfectly well, so the compatibility is worth more.
   AudioManager.setAudioSessionOptions({
     iosCategory: 'record',
-    iosMode: 'measurement',
+    iosMode: 'default',
     iosOptions: ['allowBluetoothHFP'],
     iosNotifyOthersOnDeactivation: true,
   });

@@ -41,6 +41,9 @@ import { deleteAttachments } from '@/core/attachments';
 import AttachmentStrip from './attachment-strip';
 import type { Attachment } from '@/types';
 import BottomSheetHeader from '@/features/models/components/bottom-sheet-header';
+import { useDictation } from '@/features/voice/use-dictation';
+import { useCanDictate } from '@/features/voice/store';
+import DictationPill from '@/features/voice/components/dictation-pill';
 
 // Starting estimate for the whole composer, used by the keyboard inset hook.
 export const COMPOSER_MIN_HEIGHT = 52;
@@ -93,6 +96,33 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 
     const hasModel = selectedModel !== undefined;
     const canSend = (text.trim().length > 0 || files.length > 0) && hasModel;
+
+    // Dictation replaces whatever it has transcribed so far rather than
+    // appending: whisper re-transcribes a slice as more audio arrives, so the
+    // text for a turn keeps improving and must overwrite, not accumulate. Any
+    // text already typed is kept in front of it.
+    const typedBefore = useRef('');
+    const applyTranscript = useCallback((transcript: string) => {
+      const prefix = typedBefore.current;
+      setText(prefix ? `${prefix} ${transcript}` : transcript);
+    }, []);
+    const dictation = useDictation(applyTranscript);
+    const canDictate = useCanDictate();
+    const isListening =
+      dictation.state === 'listening' || dictation.state === 'starting';
+
+    const toggleDictation = useCallback(() => {
+      if (!canDictate) {
+        navigation.navigate('ModelLibrary');
+        return;
+      }
+      if (!isListening) {
+        // Remember what was typed so the transcript lands after it.
+        typedBefore.current = text.trim();
+        Keyboard.dismiss();
+      }
+      dictation.toggle();
+    }, [canDictate, dictation, isListening, navigation, text]);
 
     const handleSend = useCallback(() => {
       const trimmed = text.trim();
@@ -201,6 +231,12 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
               </TouchableRipple>
             )}
 
+            <DictationPill
+              state={dictation.state}
+              level={dictation.level}
+              error={dictation.error}
+            />
+
             <AttachmentStrip files={files} onRemove={removeFileAt} />
             <TextInput
               value={text}
@@ -262,15 +298,22 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
               <View
                 style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
               >
-                {/* TODO:: Voice input */}
-                <Tooltip title="Coming soon!" enterTouchDelay={0}>
-                  <IconButton
-                    size={22}
-                    mode="contained"
-                    icon="microphone"
-                    style={[styles.button, { alignSelf: 'flex-end' }]}
-                  />
-                </Tooltip>
+                <IconButton
+                  size={22}
+                  mode="contained"
+                  icon={isListening ? 'stop' : 'microphone'}
+                  iconColor={isListening ? colors.error : undefined}
+                  onPress={toggleDictation}
+                  accessibilityLabel={
+                    isListening
+                      ? 'Stop dictating'
+                      : canDictate
+                      ? 'Dictate a message'
+                      : 'Get a speech model to dictate'
+                  }
+                  accessibilityState={{ busy: isListening }}
+                  style={[styles.button, { alignSelf: 'flex-end' }]}
+                />
                 {text.trim().length > 0 || isStreaming ? (
                   <IconButton
                     size={22}
