@@ -11,6 +11,7 @@ import {
 import {
   describeError,
   ensureTtsLoaded,
+  NoAudioError,
   releaseTts,
   synthesize,
   TTS_SAMPLE_RATE,
@@ -225,8 +226,13 @@ function sendAndCollect(text: string): Promise<string> {
 async function speak(reply: string) {
   const assets = resolveTtsAssets();
   if (!assets) {
-    // Voice output is not installed; the reply is still on screen and in the
-    // chat, so carry on listening rather than treating this as a failure.
+    // Voice output is not installed. Say so rather than falling silent — a
+    // conversation that answers only in text, with no explanation, reads as
+    // broken.
+    set({
+      phase: 'error',
+      error: 'No voice model is installed, so replies stay on screen.',
+    });
     return;
   }
 
@@ -248,14 +254,38 @@ async function speak(reply: string) {
   phase('speaking');
 
   const { sentences } = drainSentences(sanitizeForSpeech(reply), true);
+  let spoke = false;
+
   for (const sentence of sentences) {
     if (signal.aborted || !running) {
       break;
     }
-    const samples = await synthesize(sentence, signal);
-    if (samples) {
-      player.enqueue(samples);
+    try {
+      const samples = await synthesize(sentence, signal);
+      if (samples) {
+        player.enqueue(samples);
+        spoke = true;
+      }
+    } catch (error) {
+      if (error instanceof NoAudioError) {
+        // One sentence failing is worth knowing about but not worth abandoning
+        // the turn over; the check after the loop reports a total failure.
+        if (__DEV__) {
+          console.warn('[voice] no audio for a sentence', {
+            sentence: sentence.slice(0, 80),
+            ...error.detail,
+          });
+        }
+        continue;
+      }
+      throw error;
     }
+  }
+
+  if (!spoke && !signal.aborted && running) {
+    throw new Error(
+      'The voice model ran but produced no sound. Check the logs for [voice].',
+    );
   }
 
   if (!signal.aborted && running) {
@@ -316,6 +346,68 @@ export async function stopVoice() {
 
   conversationId = undefined;
   useVoiceState.setState(initialState);
+}
+
+/**
+ * Speak one fixed sentence, bypassing the microphone and the chat model.
+ *
+ * Development only. Time-to-first-sample and the realtime factor are the two
+ * numbers that decide whether on-device TTS is viable at all, and they are
+ * impossible to read off a full conversation where whisper and the chat model
+ * dominate the wait.
+ */
+export async function testSpeak(
+  sentence = 'Hello. This is a test of the on-device voice.',
+) {
+  const assets = resolveTtsAssets();
+  if (!assets) {
+    set({ phase: 'error', error: 'No voice model is installed.' });
+    return;
+  }
+
+  running = true;
+  set({ heard: sentence, reply: '', error: undefined });
+  phase('preparing');
+
+  const startedAt = Date.now();
+  try {
+    await ensureTtsLoaded(assets.tts, assets.vocoder);
+    const loadedAt = Date.now();
+
+    player = createSpeechPlayer(TTS_SAMPLE_RATE, level => set({ level }));
+    phase('speaking');
+
+    const samples = await synthesize(sentence);
+    const synthesisedAt = Date.now();
+
+    if (!samples) {
+      throw new Error('Synthesis returned nothing.');
+    }
+
+    const audioSeconds = samples.length / TTS_SAMPLE_RATE;
+    const computeSeconds = (synthesisedAt - loadedAt) / 1000;
+    console.warn('[voice] test synthesis', {
+      loadMs: loadedAt - startedAt,
+      synthesisMs: synthesisedAt - loadedAt,
+      audioSeconds: audioSeconds.toFixed(2),
+      // Above 1.0 means the model cannot keep up with its own speech.
+      realtimeFactor: (computeSeconds / audioSeconds).toFixed(2),
+      samples: samples.length,
+    });
+
+    player.enqueue(samples);
+    await player.drained();
+    await player.stop();
+    player = undefined;
+    phase('idle');
+  } catch (error) {
+    const detail =
+      error instanceof NoAudioError ? JSON.stringify(error.detail) : '';
+    console.warn('[voice] test synthesis failed', describeError(error), detail);
+    set({ phase: 'error', error: `${describeError(error)} ${detail}`.trim() });
+  } finally {
+    running = false;
+  }
 }
 
 /** Which conversation the call is writing into, for the screen to link back. */

@@ -119,7 +119,11 @@ export function createSpeechPlayer(
 
       if (!started) {
         started = true;
-        queue.start();
+        // Both arguments are explicit because AudioBufferQueueSourceNode
+        // defaults `offset` to -1 and then rejects it in its own guard, so the
+        // no-argument call throws "offset must be a finite non-negative
+        // number: -1" every time. (react-native-audio-api 0.13.3)
+        queue.start(0, 0);
       }
       startTicking();
     },

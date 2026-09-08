@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Button, Text, useTheme } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 
@@ -13,6 +13,7 @@ import {
   setMuted,
   startVoice,
   stopVoice,
+  testSpeak,
   useVoiceState,
 } from '../pipeline';
 
@@ -142,6 +143,17 @@ const VoiceScreen = ({ navigation, route }: VoiceScreenProps) => {
         )}
       </ScrollView>
 
+      {__DEV__ && (
+        <Button
+          mode="outlined"
+          compact
+          onPress={() => void testSpeak()}
+          style={styles.testButton}
+        >
+          Test voice
+        </Button>
+      )}
+
       <VoiceControls
         phase={phase}
         muted={muted}
@@ -172,6 +184,10 @@ const styles = StyleSheet.create({
   transcriptContent: {
     gap: 16,
     paddingVertical: 8,
+  },
+  testButton: {
+    alignSelf: 'center',
+    marginBottom: 12,
   },
 });
 

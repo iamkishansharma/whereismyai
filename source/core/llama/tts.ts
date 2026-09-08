@@ -21,9 +21,35 @@ import { describeError, unload } from './engine';
  */
 export const TTS_SAMPLE_RATE = 24000;
 
-// Roughly sixteen seconds of audio. Long enough for any sentence we send, and a
-// bound on the damage if the model fails to emit a stop.
+// Roughly sixteen seconds of audio at 75 codes/second — the ceiling, not the
+// target. Reaching it means the model never emitted its stop token.
 const MAX_AUDIO_TOKENS = 1200;
+
+/**
+ * How many audio tokens a piece of text should plausibly need.
+ *
+ * OuteTTS emits ~75 codes per second and English runs ~15 characters per
+ * second, so a character costs about 5 tokens. Measured runs showed the model
+ * happily generating to whatever ceiling it is given — 1200 tokens (16 seconds
+ * of audio) for a 45-character sentence — so the budget is sized to the text
+ * with headroom rather than left wide open. Synthesis time is proportional to
+ * tokens generated, which makes this the single biggest lever on latency.
+ */
+function tokenBudgetFor(text: string): number {
+  const estimated = Math.round(text.length * 5 * 1.6) + 150;
+  return Math.min(MAX_AUDIO_TOKENS, Math.max(200, estimated));
+}
+
+/**
+ * The vocoder's batch size, and the hard ceiling on one decode.
+ *
+ * `decodeAudioTokens` submits every audio token as a SINGLE `llama_encode`
+ * batch, and llama.rn builds the vocoder with `n_ubatch = n_batch`. Exceeding
+ * it does not fail gracefully — `llama_context::encode` calls `GGML_ABORT` and
+ * takes the whole process down. This must therefore stay comfortably above
+ * MAX_AUDIO_TOKENS. llama.cpp's own tts example uses 8192 for the same reason.
+ */
+const VOCODER_BATCH = 4096;
 
 let context: LlamaContext | undefined;
 let loadedPath: string | undefined;
@@ -69,7 +95,7 @@ export async function ensureTtsLoaded(
 
     const enabled = await next.initVocoder({
       path: vocoder.path,
-      n_batch: 512,
+      n_batch: VOCODER_BATCH,
     });
 
     if (!enabled || !(await next.isVocoderEnabled())) {
@@ -105,11 +131,41 @@ export async function releaseTts(): Promise<void> {
 }
 
 /**
+ * Raised when the voice model ran but emitted nothing playable.
+ *
+ * Carries what the model actually did, because the failure is otherwise
+ * indistinguishable from silence: the completion succeeds, `audio_tokens` is
+ * simply absent, and every downstream step happily does nothing.
+ */
+export class NoAudioError extends Error {
+  constructor(readonly detail: SynthesisDiagnostics) {
+    super('The voice model produced no audio.');
+    this.name = 'NoAudioError';
+  }
+}
+
+export interface SynthesisDiagnostics {
+  vocoderEnabled: boolean;
+  /** Characters of the formatted prompt — the speaker block alone is ~1k tokens. */
+  promptChars: number;
+  grammarChars: number;
+  guideTokenCount: number;
+  /**
+   * What the model emitted as text. The tell: real words here mean it
+   * free-generated prose instead of audio codes, so the grammar is not binding.
+   */
+  textSample: string;
+  contextFull?: boolean;
+  truncated?: boolean;
+}
+
+/**
  * Turn one piece of text into samples at {@link TTS_SAMPLE_RATE}.
  *
- * Returns undefined when the model produced no audio tokens, which callers
- * should treat as "this sentence stays silent" rather than as a failure — the
- * conversation is more useful continuing without a voice than stopping.
+ * @throws {NoAudioError} when the model emitted no audio tokens. Deliberately
+ * loud: an earlier version returned undefined here, which turned a broken
+ * vocoder into a conversation that listened, thought, and then said nothing at
+ * all with no error anywhere.
  */
 export async function synthesize(
   text: string,
@@ -144,20 +200,50 @@ export async function synthesize(
       prompt,
       grammar,
       guide_tokens: guideTokens,
-      n_predict: MAX_AUDIO_TOKENS,
+      n_predict: tokenBudgetFor(text),
       temperature: 0.7,
       top_k: 40,
       top_p: 0.95,
       penalty_repeat: 1.1,
     });
 
-    const tokens = result.audio_tokens ?? [];
-    if (!tokens.length || signal?.aborted) {
+    if (signal?.aborted) {
       return undefined;
     }
 
+    let tokens = result.audio_tokens ?? [];
+
+    // Belt and braces: a batch larger than the vocoder's aborts the process
+    // rather than returning an error, so never hand it more than it can take.
+    if (tokens.length > VOCODER_BATCH) {
+      tokens = tokens.slice(0, VOCODER_BATCH);
+    }
+
+    if (!tokens.length) {
+      throw new NoAudioError({
+        vocoderEnabled: await ctx.isVocoderEnabled(),
+        promptChars: prompt.length,
+        grammarChars: grammar?.length ?? 0,
+        guideTokenCount: guideTokens.length,
+        textSample: (result.text ?? '').slice(0, 200),
+        contextFull: result.context_full,
+        truncated: result.truncated,
+      });
+    }
+
     const samples = await ctx.decodeAudioTokens(tokens);
-    return samples.length ? Float32Array.from(samples) : undefined;
+    if (!samples.length) {
+      throw new NoAudioError({
+        vocoderEnabled: await ctx.isVocoderEnabled(),
+        promptChars: prompt.length,
+        grammarChars: grammar?.length ?? 0,
+        guideTokenCount: guideTokens.length,
+        textSample: `decoded 0 samples from ${tokens.length} audio tokens`,
+        contextFull: result.context_full,
+        truncated: result.truncated,
+      });
+    }
+    return Float32Array.from(samples);
   } finally {
     signal?.removeEventListener('abort', onAbort);
   }
