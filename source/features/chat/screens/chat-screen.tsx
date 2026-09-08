@@ -18,6 +18,7 @@ import {
   type ChatComposerHandle,
 } from '@/features/chat/components';
 import { ModelPickerSheet } from '@/features/models';
+import VoiceSetupSheet from '@/features/voice/components/voice-setup-sheet';
 import useChatStore, {
   useConversationMessageIds,
   useIsStreaming,
@@ -148,6 +149,7 @@ const Chat = ({ navigation, route }: ChatScreenProps) => {
       {/* One instance for the whole screen — the composer, the welcome card
           and the stack header all open this same sheet. */}
       <ModelPickerSheet />
+      <VoiceSetupSheet />
     </>
   );
 };

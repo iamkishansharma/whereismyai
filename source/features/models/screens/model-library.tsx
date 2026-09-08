@@ -29,16 +29,12 @@ import {
   searchGgufRepos,
 } from '@/features/models/huggingface';
 import useModelStore, { useInstalledOrder } from '@/features/models/store';
+import VoiceBundleRow from '@/features/voice/components/voice-bundle-row';
 import VoiceModelRow from '@/features/voice/components/voice-model-row';
-import {
-  SPEECH_CATALOG,
-  VAD_ASSET,
-  VOICE_OUTPUT_ASSETS,
-  VOICE_OUTPUT_BYTES,
-} from '@/features/voice/catalog';
+import { SPEECH_BUNDLES, VOICE_OUTPUT_BUNDLE } from '@/features/voice/catalog';
 import type { HfRepo, VoiceAssetRole } from '@/types';
 import type { ModelLibraryScreenProps } from '@/navigation/types';
-import { formatBytes, formatCount } from '@/shared/utils/format';
+import { formatCount } from '@/shared/utils/format';
 
 type Tab = 'installed' | 'recommended' | 'search';
 
@@ -169,19 +165,18 @@ const RecommendedTab = ({ onOpen }: { onOpen: (modelId: string) => void }) => (
     ))}
 
     <List.Subheader>Speech to text — dictation and voice chat</List.Subheader>
-    {SPEECH_CATALOG.map(asset => (
-      <VoiceModelRow key={asset.id} asset={asset} selectable />
+    <VoiceNote>
+      Each includes the speech detector, which knows when you stop talking.
+    </VoiceNote>
+    {SPEECH_BUNDLES.map(item => (
+      <VoiceBundleRow key={item.id} bundle={item} selectable />
     ))}
-    <VoiceModelRow asset={VAD_ASSET} />
 
     <List.Subheader>Text to speech — the assistant's voice</List.Subheader>
     <VoiceNote>
-      Both files are needed to speak, {formatBytes(VOICE_OUTPUT_BYTES)}{' '}
-      together.
+      The voice model and its vocoder download together; neither works alone.
     </VoiceNote>
-    {VOICE_OUTPUT_ASSETS.map(asset => (
-      <VoiceModelRow key={asset.id} asset={asset} />
-    ))}
+    <VoiceBundleRow bundle={VOICE_OUTPUT_BUNDLE} />
   </>
 );
 

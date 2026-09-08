@@ -24,6 +24,7 @@ export const linking: LinkingOptions<RootStackParamList> = {
               ModelLibrary: 'models',
               ModelDetail: 'models/:modelId',
               GenerationSettings: 'generation',
+              Voice: 'voice',
             },
           },
         },

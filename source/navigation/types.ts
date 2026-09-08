@@ -20,6 +20,7 @@ export type ChatStackParamList = {
   ModelLibrary: undefined;
   ModelDetail: { modelId: string };
   GenerationSettings: { modelId?: string } | undefined;
+  Voice: { conversationId?: string } | undefined;
 };
 
 declare global {
@@ -43,6 +44,8 @@ export type ModelLibraryScreenProps = ChatStackScreenProps<'ModelLibrary'>;
 export type ModelDetailScreenProps = ChatStackScreenProps<'ModelDetail'>;
 export type GenerationSettingsScreenProps =
   ChatStackScreenProps<'GenerationSettings'>;
+
+export type VoiceScreenProps = ChatStackScreenProps<'Voice'>;
 
 export type OnboardingScreenProps = NativeStackScreenProps<
   RootStackParamList,

@@ -21,7 +21,6 @@ import {
   List,
   Switch,
   Text,
-  Tooltip,
   TouchableRipple,
   useTheme,
 } from 'react-native-paper';
@@ -42,7 +41,8 @@ import AttachmentStrip from './attachment-strip';
 import type { Attachment } from '@/types';
 import BottomSheetHeader from '@/features/models/components/bottom-sheet-header';
 import { useDictation } from '@/features/voice/use-dictation';
-import { useCanDictate } from '@/features/voice/store';
+import { useVoiceReadiness } from '@/features/voice/store';
+import { openVoiceSetup } from '@/features/voice/use-voice-setup';
 import DictationPill from '@/features/voice/components/dictation-pill';
 
 // Starting estimate for the whole composer, used by the keyboard inset hook.
@@ -107,13 +107,15 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
       setText(prefix ? `${prefix} ${transcript}` : transcript);
     }, []);
     const dictation = useDictation(applyTranscript);
-    const canDictate = useCanDictate();
+    const { canDictate, canConverse } = useVoiceReadiness(hasModel);
     const isListening =
       dictation.state === 'listening' || dictation.state === 'starting';
 
     const toggleDictation = useCallback(() => {
       if (!canDictate) {
-        navigation.navigate('ModelLibrary');
+        // A disabled button explains nothing; offer the download instead.
+        Keyboard.dismiss();
+        openVoiceSetup('dictation');
         return;
       }
       if (!isListening) {
@@ -122,7 +124,17 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
         Keyboard.dismiss();
       }
       dictation.toggle();
-    }, [canDictate, dictation, isListening, navigation, text]);
+    }, [canDictate, dictation, isListening, text]);
+
+    const startConversation = useCallback(() => {
+      if (!canConverse) {
+        Keyboard.dismiss();
+        openVoiceSetup('conversation');
+        return;
+      }
+      dictation.stop();
+      navigation.navigate('Voice', { conversationId: undefined });
+    }, [canConverse, dictation, navigation]);
 
     const handleSend = useCallback(() => {
       const trimmed = text.trim();
@@ -336,15 +348,18 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
                     style={[styles.button, { alignSelf: 'flex-end' }]}
                   />
                 ) : (
-                  <Tooltip title="Coming soon!" enterTouchDelay={0}>
-                    {/* TODO:: Voice conversation */}
-                    <IconButton
-                      size={22}
-                      mode="contained"
-                      icon="waveform"
-                      style={[styles.button, { alignSelf: 'flex-end' }]}
-                    />
-                  </Tooltip>
+                  <IconButton
+                    size={22}
+                    mode="contained"
+                    icon="waveform"
+                    onPress={startConversation}
+                    accessibilityLabel={
+                      canConverse
+                        ? 'Start a voice conversation'
+                        : 'Set up voice conversation'
+                    }
+                    style={[styles.button, { alignSelf: 'flex-end' }]}
+                  />
                 )}
               </View>
             </View>

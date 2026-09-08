@@ -125,10 +125,65 @@ export const VOCODER_ASSET = withVoiceIds([
   },
 ])[0];
 
+/**
+ * A voice capability as one download.
+ *
+ * Speech needs whisper plus the speech detector; the assistant's voice needs
+ * OuteTTS plus its vocoder. Neither is useful half-installed, so they are
+ * presented and fetched as a unit — the same way a vision model and its
+ * projector are already one row with one progress bar.
+ */
+export interface VoiceBundle {
+  /** The primary asset's id, which also keys the download task. */
+  id: string;
+  name: string;
+  blurb: string;
+  purpose: 'speech' | 'tts';
+  /** Every file the capability needs, primary first. */
+  assets: VoiceAsset[];
+  /** Combined download size, so the bar never resets between parts. */
+  sizeBytes: number;
+}
+
+const bundle = (
+  purpose: VoiceBundle['purpose'],
+  primary: VoiceAsset,
+  companions: VoiceAsset[],
+  blurb = primary.blurb,
+): VoiceBundle => ({
+  id: primary.id,
+  name: primary.name,
+  blurb,
+  purpose,
+  assets: [primary, ...companions],
+  sizeBytes: [primary, ...companions].reduce(
+    (total, asset) => total + asset.sizeBytes,
+    0,
+  ),
+});
+
+/**
+ * Each speech model carries the detector with it. It is under a megabyte and
+ * without it there is no way to tell when a turn has ended, so offering it as a
+ * separate decision would only be a way to get voice chat subtly wrong.
+ */
+export const SPEECH_BUNDLES: VoiceBundle[] = SPEECH_CATALOG.map(asset =>
+  bundle('speech', asset, [VAD_ASSET]),
+);
+
+export const DEFAULT_SPEECH_BUNDLE = SPEECH_BUNDLES[0];
+
+export const VOICE_OUTPUT_BUNDLE: VoiceBundle = bundle(
+  'tts',
+  TTS_ASSET,
+  [VOCODER_ASSET],
+  'Speaks replies aloud, entirely on this device.',
+);
+
 /** Downloaded together, because neither half does anything alone. */
 export const VOICE_OUTPUT_ASSETS = [TTS_ASSET, VOCODER_ASSET];
 
-export const VOICE_OUTPUT_BYTES = TTS_ASSET.sizeBytes + VOCODER_ASSET.sizeBytes;
+export const VOICE_OUTPUT_BYTES = VOICE_OUTPUT_BUNDLE.sizeBytes;
 
 /** Every asset the voice features can install, for lookups by id. */
 export const ALL_VOICE_ASSETS: VoiceAsset[] = [

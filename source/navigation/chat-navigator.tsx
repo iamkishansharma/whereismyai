@@ -14,6 +14,7 @@ import {
   openModelPicker,
 } from '@/features/models';
 import { SettingsScreen } from '@/features/settings';
+import VoiceScreen from '@/features/voice/screens/voice-screen';
 import { plainHeaderOptions, transparentHeaderOptions } from './header-options';
 import type { ChatStackParamList } from './types';
 
@@ -93,6 +94,19 @@ const ChatNavigator = () => (
       name="GenerationSettings"
       component={GenerationSettingsScreen}
       options={{ title: 'Generation', ...transparentHeaderOptions }}
+    />
+
+    {/* Full screen and chrome-free: the orb is the interface, and a header
+        back button would compete with the end-call control. */}
+    <Stack.Screen
+      name="Voice"
+      component={VoiceScreen}
+      options={{
+        headerShown: false,
+        presentation: 'fullScreenModal',
+        animation: 'fade',
+        gestureEnabled: false,
+      }}
     />
   </Stack.Navigator>
 );

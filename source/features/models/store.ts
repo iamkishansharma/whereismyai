@@ -50,7 +50,8 @@ interface ModelStore {
   ) => void;
   cancelDownload: (modelId: string) => void;
   deleteModel: (modelId: string) => Promise<void>;
-  startVoiceDownload: (asset: VoiceAsset) => void;
+  /** One asset, or every file a capability needs, fetched as one download. */
+  startVoiceDownload: (assets: VoiceAsset | VoiceAsset[]) => void;
   deleteVoiceAsset: (assetId: string) => Promise<void>;
   getVoiceAsset: (assetId: string) => InstalledVoiceAsset | undefined;
   selectModel: (modelId?: string) => void;
@@ -222,27 +223,43 @@ const useModelStore = create<ModelStore>()(
       },
 
       /**
-       * Fetch one voice file.
+       * Fetch every file a voice capability needs, as one download.
        *
-       * Deliberately reuses the same `downloads` map as chat models — ids are
-       * globally unique via `modelIdFor`, so `useDownloadTask` and the progress
-       * bar work on a voice row without changes. Unlike `startDownload` it is a
-       * single part and never touches `selectedModelId`: installing a voice for
-       * the assistant must not change which model answers.
+       * Reuses the same `downloads` map as chat models — ids are globally
+       * unique via `modelIdFor`, so `useDownloadTask` and the progress bar work
+       * unchanged. Progress is reported against the combined size so the bar
+       * never resets between parts, the same way a vision model and its
+       * projector behave. Unlike `startDownload` it never touches
+       * `selectedModelId`: giving the assistant a voice must not change which
+       * model answers.
        */
-      startVoiceDownload: asset => {
+      startVoiceDownload: assets => {
+        const parts = Array.isArray(assets) ? assets : [assets];
         const { downloads, voiceInstalled } = get();
-        if (downloads[asset.id] || voiceInstalled[asset.id]) {
+        const primary = parts[0];
+        if (!primary || downloads[primary.id]) {
           return;
         }
+
+        // A companion already on disk (the detector shared by every speech
+        // model, say) is not worth fetching twice.
+        const missing = parts.filter(asset => !voiceInstalled[asset.id]);
+        if (!missing.length) {
+          return;
+        }
+
+        const totalBytes = missing.reduce(
+          (total, asset) => total + asset.sizeBytes,
+          0,
+        );
 
         set(state => ({
           downloads: {
             ...state.downloads,
-            [asset.id]: {
-              modelId: asset.id,
+            [primary.id]: {
+              modelId: primary.id,
               bytesWritten: 0,
-              contentLength: asset.sizeBytes,
+              contentLength: totalBytes,
               status: 'queued',
             },
           },
@@ -250,53 +267,70 @@ const useModelStore = create<ModelStore>()(
 
         const patch = (partial: Partial<DownloadTask>) =>
           set(state => {
-            const task = state.downloads[asset.id];
+            const task = state.downloads[primary.id];
             if (!task) {
               return state;
             }
             return {
               downloads: {
                 ...state.downloads,
-                [asset.id]: { ...task, ...partial },
+                [primary.id]: { ...task, ...partial },
               },
             };
           });
 
-        const target = assetPath(asset.id, asset.extension);
+        let completedBytes = 0;
 
-        startModelDownload({
-          target,
-          repo: asset.repo,
-          filename: asset.filename,
-          onBegin: jobId => patch({ jobId, status: 'downloading' }),
-          onProgress: bytesWritten =>
-            patch({ bytesWritten, contentLength: asset.sizeBytes }),
-        })
-          .then(path => {
-            const entry: InstalledVoiceAsset = {
-              ...asset,
-              path,
-              downloadedAt: Date.now(),
-            };
+        const downloadPart = (asset: VoiceAsset) =>
+          startModelDownload({
+            target: assetPath(asset.id, asset.extension),
+            repo: asset.repo,
+            filename: asset.filename,
+            onBegin: jobId => patch({ jobId, status: 'downloading' }),
+            onProgress: bytesWritten =>
+              patch({
+                bytesWritten: completedBytes + bytesWritten,
+                contentLength: totalBytes,
+              }),
+          }).then(path => {
+            completedBytes += asset.sizeBytes;
+            patch({ bytesWritten: completedBytes });
+            return { asset, path };
+          });
+
+        (async () => {
+          const installed: InstalledVoiceAsset[] = [];
+          // Sequential rather than parallel: two large files over one
+          // connection just make each other slower, and a combined progress
+          // bar only reads honestly if parts land in order.
+          for (const asset of missing) {
+            const { path } = await downloadPart(asset);
+            installed.push({ ...asset, path, downloadedAt: Date.now() });
+          }
+          return installed;
+        })()
+          .then(installedAssets => {
             set(state => {
               const remaining = { ...state.downloads };
-              delete remaining[asset.id];
-              return {
-                downloads: remaining,
-                voiceInstalled: {
-                  ...state.voiceInstalled,
-                  [asset.id]: entry,
-                },
-              };
+              delete remaining[primary.id];
+              const next = { ...state.voiceInstalled };
+              installedAssets.forEach(asset => {
+                next[asset.id] = asset;
+              });
+              return { downloads: remaining, voiceInstalled: next };
             });
           })
           .catch(error => {
-            void removeFile(target);
+            // Half a bundle is no use, so nothing partial is left behind.
+            missing.forEach(asset =>
+              removeFile(assetPath(asset.id, asset.extension)).catch(() => {}),
+            );
+
             const message = describeError(error);
             if (message.includes('aborted') || message.includes('cancel')) {
               set(state => {
                 const remaining = { ...state.downloads };
-                delete remaining[asset.id];
+                delete remaining[primary.id];
                 return { downloads: remaining };
               });
               return;
