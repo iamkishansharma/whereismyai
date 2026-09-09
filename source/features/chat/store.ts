@@ -35,6 +35,10 @@ interface ChatStore {
   renameConversation: (conversationId: string, title: string) => void;
 
   setConversationModel: (conversationId: string, modelId?: string) => void;
+  setConversationSystemPrompt: (
+    conversationId: string,
+    systemPrompt?: string,
+  ) => void;
   chooseModel: (modelId: string) => void;
 
   sendMessage: (
@@ -359,6 +363,28 @@ const useChatStore = create<ChatStore>()((set, get) => ({
 
     void repo.updateConversation(conversationId, { modelId });
   },
+
+  /**
+   * Override the system prompt for one conversation.
+   *
+   * Voice mode uses this to ask for short answers: spoken replies are read
+   * aloud at roughly 15 characters a second, so a paragraph that is pleasant
+   * to read is a minute of talking. Passing undefined restores the model's
+   * own default.
+   */
+  setConversationSystemPrompt: (conversationId, systemPrompt) =>
+    set(state => {
+      const conversation = state.conversations[conversationId];
+      if (!conversation) {
+        return state;
+      }
+      return {
+        conversations: {
+          ...state.conversations,
+          [conversationId]: { ...conversation, systemPrompt },
+        },
+      };
+    }),
 
   // The single way to pick a model. Writing only the global selection leaves
   // the open conversation pinned to whatever it was created with, so the chip

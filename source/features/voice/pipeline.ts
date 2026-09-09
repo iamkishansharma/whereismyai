@@ -9,6 +9,7 @@ import {
   type SpeechPlayer,
 } from '@/core/audio';
 import {
+  canKeepBothLoaded,
   describeError,
   ensureTtsLoaded,
   NoAudioError,
@@ -16,6 +17,7 @@ import {
   synthesize,
   TTS_SAMPLE_RATE,
 } from '@/core/llama';
+import useModelStore from '@/features/models/store';
 import useChatStore from '@/features/chat/store';
 import { drainSentences, sanitizeForSpeech } from './chunker';
 import type { VoicePhase } from './components/voice-orb';
@@ -76,8 +78,50 @@ let running = false;
 // spoken, so a stray VAD event cannot start a second turn on top of the first.
 let turnInFlight = false;
 
+/**
+ * What the model is told while the conversation is spoken aloud.
+ *
+ * Synthesis time is very nearly linear in characters — the voice reads at
+ * roughly 15 a second and generates far slower than it speaks — so the length
+ * of the reply is the single biggest lever on how long the user waits. A
+ * paragraph that is pleasant to read is a minute of talking.
+ */
+const VOICE_SYSTEM_PROMPT =
+  'You are in a spoken conversation. Reply in one or two short sentences, ' +
+  'under 40 words. Speak plainly, as a person would out loud: no lists, no ' +
+  'headings, no code, no emoji. If the answer is genuinely long, give the ' +
+  'short version and offer to go deeper.';
+
+/** The conversation's own prompt, put back when the call ends. */
+let previousSystemPrompt: string | undefined;
+let overrodeSystemPrompt = false;
+
 function phase(next: VoicePhase) {
   set({ phase: next });
+}
+
+/**
+ * Point the conversation at the voice prompt for the duration of the call.
+ *
+ * Set before the first message rather than after, because `sendMessage` starts
+ * generation synchronously and `generateReply` reads the prompt as it goes.
+ */
+function applyVoicePrompt(id: string) {
+  const chat = useChatStore.getState();
+  previousSystemPrompt = chat.conversations[id]?.systemPrompt;
+  overrodeSystemPrompt = true;
+  chat.setConversationSystemPrompt(id, VOICE_SYSTEM_PROMPT);
+}
+
+function restoreSystemPrompt() {
+  if (!overrodeSystemPrompt || !conversationId) {
+    return;
+  }
+  overrodeSystemPrompt = false;
+  useChatStore
+    .getState()
+    .setConversationSystemPrompt(conversationId, previousSystemPrompt);
+  previousSystemPrompt = undefined;
 }
 
 /** Start a spoken conversation. Assumes the models are installed. */
@@ -160,12 +204,23 @@ export async function finishTurn() {
     await stopListening();
     phase('thinking');
 
-    const reply = await sendAndCollect(heard);
+    // With both models resident the voice can start a sentence into the reply
+    // instead of after it, which is most of the difference between a
+    // conversation and a wait. Decided per turn because the chat model can
+    // change between them.
+    const chatBytes =
+      useModelStore.getState().getSelectedModel()?.sizeBytes ?? 0;
+    const streaming = await canKeepBothLoaded(chatBytes);
+
+    const reply = streaming
+      ? await streamAndSpeak(heard)
+      : await sendAndCollect(heard);
+
     if (!running) {
       return;
     }
 
-    if (reply.trim()) {
+    if (!streaming && reply.trim()) {
       await speak(reply);
     }
   } catch (error) {
@@ -191,8 +246,16 @@ export async function finishTurn() {
 function sendAndCollect(text: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const chat = useChatStore.getState();
-    const targetId = chat.sendMessage(conversationId, text);
+
+    // A conversation has to exist before its prompt can be set, and the prompt
+    // has to be set before the first message starts generating.
+    const targetId = conversationId ?? chat.createConversation();
     conversationId = targetId;
+    if (!overrodeSystemPrompt) {
+      applyVoicePrompt(targetId);
+    }
+
+    chat.sendMessage(targetId, text);
 
     // sendMessage's set() is synchronous, so the placeholder already exists.
     const ids =
@@ -209,6 +272,168 @@ function sendAndCollect(text: string): Promise<string> {
         return;
       }
       set({ reply: message.content });
+
+      if (message.status === 'streaming') {
+        return;
+      }
+      unsubscribe();
+      if (message.status === 'error') {
+        reject(new Error(message.error ?? 'The model could not answer.'));
+        return;
+      }
+      resolve(message.content);
+    });
+  });
+}
+
+/**
+ * Send, then speak each sentence as it arrives rather than waiting for the end.
+ *
+ * Only valid while both models are resident: synthesising mid-reply means the
+ * chat model must still be loaded to finish it. The first sentence typically
+ * lands seconds before the last, which is where the perceived speed comes from.
+ *
+ * @returns the full reply text, once spoken.
+ */
+async function streamAndSpeak(text: string): Promise<string> {
+  const assets = resolveTtsAssets();
+  if (!assets) {
+    set({
+      phase: 'error',
+      error: 'No voice model is installed, so replies stay on screen.',
+    });
+    return '';
+  }
+
+  phase('preparing');
+  await ensureTtsLoaded(assets.tts, assets.vocoder, { evictChat: false });
+  if (!running) {
+    return '';
+  }
+
+  ttsAbort = new AbortController();
+  const { signal } = ttsAbort;
+  player = createSpeechPlayer(TTS_SAMPLE_RATE, level => {
+    if (running) {
+      set({ level });
+    }
+  });
+
+  // One worker drains the queue in order. Synthesis is single-threaded through
+  // one context, so running sentences concurrently would only interleave them.
+  const queue: string[] = [];
+  let draining: Promise<void> = Promise.resolve();
+  let spoke = false;
+  let buffered = '';
+  let speaking = false;
+
+  const drain = async () => {
+    while (queue.length && !signal.aborted && running) {
+      const sentence = queue.shift() as string;
+      try {
+        const samples = await synthesize(sentence, signal);
+        if (samples) {
+          if (!speaking) {
+            speaking = true;
+            phase('speaking');
+          }
+          player?.enqueue(samples);
+          spoke = true;
+        }
+      } catch (error) {
+        if (error instanceof NoAudioError) {
+          if (__DEV__) {
+            console.warn('[voice] no audio for a sentence', {
+              sentence: sentence.slice(0, 80),
+              ...error.detail,
+            });
+          }
+          continue;
+        }
+        throw error;
+      }
+    }
+  };
+
+  const push = (chunk: string, flush: boolean) => {
+    buffered += chunk;
+    const { sentences, rest } = drainSentences(buffered, flush);
+    buffered = rest;
+    if (!sentences.length) {
+      return;
+    }
+    queue.push(...sentences);
+    draining = draining.then(drain);
+  };
+
+  const reply = await sendStreaming(text, delta =>
+    push(sanitizeForSpeech(delta), false),
+  );
+
+  // Whatever is left after the model stops, including a final unterminated
+  // fragment.
+  push('', true);
+  await draining;
+
+  if (!signal.aborted && running) {
+    await player.drained();
+  }
+
+  await player.stop();
+  player = undefined;
+  ttsAbort = undefined;
+  set({ level: 0 });
+
+  if (!spoke && !signal.aborted && running && reply.trim()) {
+    throw new Error(
+      'The voice model ran but produced no sound. Check the logs for [voice].',
+    );
+  }
+
+  return reply;
+}
+
+/**
+ * Send and report the reply as it grows.
+ *
+ * `onDelta` receives only what is new, so the caller can chunk it into
+ * sentences without re-scanning the whole reply each time.
+ */
+function sendStreaming(
+  text: string,
+  onDelta: (delta: string) => void,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const chat = useChatStore.getState();
+    const targetId = conversationId ?? chat.createConversation();
+    conversationId = targetId;
+    if (!overrodeSystemPrompt) {
+      applyVoicePrompt(targetId);
+    }
+
+    chat.sendMessage(targetId, text);
+
+    const ids =
+      useChatStore.getState().conversations[targetId]?.messageIds ?? [];
+    const replyId = ids[ids.length - 1];
+    if (!replyId) {
+      reject(new Error('The reply could not be started.'));
+      return;
+    }
+
+    let seen = 0;
+    const unsubscribe = useChatStore.subscribe(state => {
+      const message = state.messages[replyId];
+      if (!message) {
+        return;
+      }
+      set({ reply: message.content });
+
+      if (message.content.length > seen) {
+        const delta = message.content.slice(seen);
+        seen = message.content.length;
+        onDelta(delta);
+      }
 
       if (message.status === 'streaming') {
         return;
@@ -340,6 +565,8 @@ export async function stopVoice() {
     useChatStore.getState().stopStreaming(conversationId);
   }
 
+  restoreSystemPrompt();
+
   await releaseTts();
   await releaseSpeech();
   await deactivateSession();
@@ -365,7 +592,14 @@ export async function testSpeak(
     return;
   }
 
-  running = true;
+  // Take the live loop offline first. Listening continues in the background
+  // otherwise, and a VAD-triggered turn will race this for the TTS context —
+  // one side releases it while the other is mid-completion and the JSI call
+  // fails with "Context not found".
+  running = false;
+  turnInFlight = true;
+  await stopListening();
+
   set({ heard: sentence, reply: '', error: undefined });
   phase('preparing');
 
@@ -406,7 +640,7 @@ export async function testSpeak(
     console.warn('[voice] test synthesis failed', describeError(error), detail);
     set({ phase: 'error', error: `${describeError(error)} ${detail}`.trim() });
   } finally {
-    running = false;
+    turnInFlight = false;
   }
 }
 

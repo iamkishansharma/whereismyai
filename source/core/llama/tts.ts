@@ -1,16 +1,20 @@
-import { initLlama, type LlamaContext } from 'llama.rn';
+import { getBackendDevicesInfo, initLlama, type LlamaContext } from 'llama.rn';
 
 import type { InstalledVoiceAsset } from '@/types';
+import { isIOS } from '@/shared/utils';
 import { describeError, unload } from './engine';
 
 /**
  * Text to speech through llama.rn's vocoder API.
  *
  * OuteTTS generates audio tokens like any other completion; WavTokenizer turns
- * them into samples. Both live in one `LlamaContext` that is separate from the
- * chat one — and, by design, never resident at the same time. A phone that can
- * comfortably hold a chat model plus a 500M voice model plus a vocoder is not
- * the phone this has to work on, so speaking swaps the chat model out and back.
+ * them into samples. Both live in one `LlamaContext` separate from the chat
+ * one.
+ *
+ * Whether they can be resident together decides how the conversation feels. If
+ * they can, speech starts a sentence into the reply and the model never
+ * reloads; if they cannot, the chat model is evicted first and the user waits
+ * several seconds for the swap on every single turn. So we ask the device.
  */
 
 /**
@@ -51,8 +55,72 @@ function tokenBudgetFor(text: string): number {
  */
 const VOCODER_BATCH = 4096;
 
+/**
+ * Hardware tuning for speech generation. Zero means "leave it to llama.rn".
+ *
+ * Both were measured on the Android emulator and both made things dramatically
+ * worse there: full GPU offload took the realtime factor from 6.1x to 38.3x
+ * (the emulator has no GPU backend to offload to), and four threads was slower
+ * than the default two (four emulated vCPUs, heavily contended). Neither
+ * result predicts real silicon — a phone with Metal or Adreno should benefit
+ * from both — so they are left off by default and kept here as named,
+ * measurable knobs rather than removed. Use the Test voice button on a real
+ * device before changing them.
+ */
+const TTS_GPU_LAYERS = 0;
+const TTS_THREADS = 0;
+
+/**
+ * What OuteTTS plus its vocoder need resident, weights and working memory.
+ *
+ * The 500M model is ~350MB at Q4, the vocoder ~73MB, and the 4k context plus
+ * compute buffers account for the rest.
+ */
+const TTS_RESIDENT_BYTES = 700 * 1024 * 1024;
+
+/**
+ * Share of device memory an app may reasonably hold in models.
+ *
+ * Deliberately well under half: iOS jetsams aggressively and the rest of the
+ * app, the JS heap and the audio graph all have to live somewhere too.
+ */
+const MEMORY_BUDGET = isIOS ? 0.45 : 0.4;
+
 let context: LlamaContext | undefined;
 let loadedPath: string | undefined;
+let deviceMemoryBytes: number | undefined;
+
+async function totalDeviceMemory(): Promise<number> {
+  if (deviceMemoryBytes !== undefined) {
+    return deviceMemoryBytes;
+  }
+  try {
+    const devices = await getBackendDevicesInfo();
+    // The CPU backend reports system RAM, which is the number that matters —
+    // a GPU entry describes a shared pool on every phone we run on.
+    deviceMemoryBytes = devices.reduce(
+      (largest, device) => Math.max(largest, device.maxMemorySize || 0),
+      0,
+    );
+  } catch {
+    deviceMemoryBytes = 0;
+  }
+  return deviceMemoryBytes;
+}
+
+/**
+ * Whether the voice can load without evicting a chat model of this size.
+ *
+ * Answers false when the device will not say how much memory it has, because
+ * guessing wrong here means the OS kills the app mid-sentence.
+ */
+export async function canKeepBothLoaded(chatBytes: number): Promise<boolean> {
+  const total = await totalDeviceMemory();
+  if (!total) {
+    return false;
+  }
+  return chatBytes + TTS_RESIDENT_BYTES <= total * MEMORY_BUDGET;
+}
 
 export function isTtsLoaded(): boolean {
   return context !== undefined;
@@ -66,16 +134,24 @@ export function isTtsLoaded(): boolean {
 export async function ensureTtsLoaded(
   tts: InstalledVoiceAsset,
   vocoder: InstalledVoiceAsset,
-  onProgress?: (progress: number) => void,
+  options: {
+    evictChat?: boolean;
+    onProgress?: (progress: number) => void;
+  } = {},
 ): Promise<LlamaContext> {
+  const { evictChat = true, onProgress } = options;
+
   if (context && loadedPath === tts.path) {
     return context;
   }
 
   await releaseTts();
-  // One llama context at a time. Loading the voice while the chat model is
-  // still resident is what makes mid-range devices get killed.
-  await unload();
+  if (evictChat) {
+    // Not enough memory for both. Loading the voice alongside the chat model
+    // is what gets mid-range devices killed, so the chat model goes first and
+    // is reloaded after the reply is spoken.
+    await unload();
+  }
 
   try {
     const next = await initLlama(
@@ -85,6 +161,8 @@ export async function ensureTtsLoaded(
         // anything we ask for, so a small window is not an option.
         n_ctx: 4096,
         n_batch: 512,
+        ...(TTS_GPU_LAYERS > 0 ? { n_gpu_layers: TTS_GPU_LAYERS } : null),
+        ...(TTS_THREADS > 0 ? { n_threads: TTS_THREADS } : null),
         // Never mlock the voice: it is the short-lived tenant, and pinning two
         // models is how the second allocation gets killed rather than paged.
         use_mlock: false,
