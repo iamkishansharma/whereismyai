@@ -1,5 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Image,
+  StatusBar,
+  StyleSheet,
+  View,
+} from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
 import { useChatStore, useHydrated } from '@/features/chat';
@@ -7,6 +13,11 @@ import useModelStore from '@/features/models/store';
 import useSettingsStore from '@/features/settings/store';
 import { useDatabaseMigrations } from '@/core/db';
 import { reconcileAttachments } from '@/core/attachments';
+
+// Matches bootsplash_background and the logo's own background exactly.
+const SPLASH_BACKGROUND = '#000000';
+const SPLASH_TEXT = '#FFFFFF';
+const SPLASH_MUTED = 'rgba(255, 255, 255, 0.6)';
 
 const DatabaseGate = ({ children }: { children: ReactNode }) => {
   const { colors } = useTheme();
@@ -72,10 +83,14 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
   }
 
   if (!success || !hydrated) {
-    // Continues the native splash rather than replacing it: same logo, same
-    // background, same position.
+    // Continues the native splash rather than replacing it, so its colours are
+    // fixed rather than themed: the splash behind it is black either way, and
+    // the logo is a light mark on its own black square.
     return (
-      <View style={[styles.splash, { backgroundColor: colors.background }]}>
+      <View style={styles.splash}>
+        {/* Last mounted wins, so this reverts to the themed bar on unmount. */}
+        <StatusBar barStyle="light-content" />
+
         <View style={styles.splashCentre}>
           <Image
             source={require('@/assets/wima-logo.png')}
@@ -85,14 +100,17 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
         </View>
 
         <View style={styles.splashFooter}>
-          <Text variant="titleMedium">Where Is My AI</Text>
-          <Text
-            variant="bodySmall"
-            style={[styles.tagline, { color: colors.onSurfaceVariant }]}
-          >
+          <Text variant="titleMedium" style={styles.splashTitle}>
+            Where Is My AI
+          </Text>
+          <Text variant="bodySmall" style={styles.tagline}>
             It's right here on your phone.
           </Text>
-          <ActivityIndicator style={styles.splashSpinner} size="small" />
+          <ActivityIndicator
+            style={styles.splashSpinner}
+            size="small"
+            color={SPLASH_TEXT}
+          />
         </View>
       </View>
     );
@@ -116,23 +134,28 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 64,
+    backgroundColor: SPLASH_BACKGROUND,
   },
   splashCentre: {
     flex: 1,
     justifyContent: 'center',
   },
-  // Matches the native splash's logo width, so it does not jump.
+  // Matches the native splash's logo width, and square like it — the corners
+  // are the logo's own black, invisible against the background.
   logo: {
     width: 120,
     height: 120,
-    borderRadius: 28,
   },
   splashFooter: {
     alignItems: 'center',
     gap: 4,
   },
+  splashTitle: {
+    color: SPLASH_TEXT,
+  },
   tagline: {
     textAlign: 'center',
+    color: SPLASH_MUTED,
   },
   splashSpinner: {
     marginTop: 20,
