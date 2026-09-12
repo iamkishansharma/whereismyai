@@ -158,10 +158,10 @@ Then put these in `~/.gradle/gradle.properties` — outside the repository — o
 environment variables in CI:
 
 ```properties
-WIMA_UPLOAD_STORE_FILE=/absolute/path/to/upload.keystore
-WIMA_UPLOAD_STORE_PASSWORD=…
-WIMA_UPLOAD_KEY_ALIAS=upload
-WIMA_UPLOAD_KEY_PASSWORD=…
+WIMAI_UPLOAD_STORE_FILE=/absolute/path/to/upload.keystore
+WIMAI_UPLOAD_STORE_PASSWORD=…
+WIMAI_UPLOAD_KEY_ALIAS=upload
+WIMAI_UPLOAD_KEY_PASSWORD=…
 ```
 
 Without them `./gradlew assembleRelease` still works and falls back to debug signing, so you

@@ -158,7 +158,7 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
               onPress={() => {
                 Share.share({
                   message: message.content,
-                  title: 'Message from WIMA',
+                  title: 'Message from WhereIsMyAI',
                 });
               }}
             />

@@ -49,3 +49,13 @@ jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
   launchImageLibrary: jest.fn(),
 }));
+
+// Ships no mock of its own, and is a TurboModule.
+jest.mock('react-native-bootsplash', () => ({
+  __esModule: true,
+  default: {
+    hide: jest.fn(async () => {}),
+    isVisible: jest.fn(async () => false),
+    useHideAnimation: jest.fn(),
+  },
+}));

@@ -1,6 +1,6 @@
 import { MD3DarkTheme, MD3LightTheme } from 'react-native-paper';
 
-export const WIMATheme = {
+export const WIMAITheme = {
   light: {
     ...MD3LightTheme,
 

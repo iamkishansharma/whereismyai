@@ -10,7 +10,7 @@ import { PaperProvider } from 'react-native-paper';
 import { useIsDarkMode } from '@/features/settings';
 import { RootNavigator, linking } from '@/navigation';
 import DatabaseGate from './database-gate';
-import { WIMATheme } from '@/shared/theme';
+import { WIMAITheme } from '@/shared/theme';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 const LinkingFallback = () => (
@@ -21,7 +21,7 @@ const LinkingFallback = () => (
 
 function AppProvider() {
   const isDarkMode = useIsDarkMode();
-  const paperTheme = isDarkMode ? WIMATheme.dark : WIMATheme.light;
+  const paperTheme = isDarkMode ? WIMAITheme.dark : WIMAITheme.light;
 
   const navigationBase = isDarkMode ? DarkTheme : DefaultTheme;
   const theme: Theme = {

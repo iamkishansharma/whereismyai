@@ -3,7 +3,7 @@ import type { RootStackParamList } from './types';
 
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
-    'wima://',
+    'whereismyai://',
     'https://whereismyai.app',
     'https://whereismyai.github.io',
     'https://whereismyai.kishansharma.com.np',

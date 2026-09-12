@@ -1,0 +1,5 @@
+<resources>
+    <!-- The splash must not flash white on the way into a dark app. Matches
+         the dark theme's background in source/shared/theme/palette.ts. -->
+    <color name="bootsplash_background">#121211</color>
+</resources>

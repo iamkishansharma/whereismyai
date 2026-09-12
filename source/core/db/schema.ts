@@ -78,8 +78,7 @@ export const appState = sqliteTable(
     themeColor: text('theme_color', { enum: ['default', 'monochrome'] })
       .notNull()
       .default('monochrome'),
-    // Off by default: the numbers matter to someone comparing models, and are
-    // noise to everyone else.
+    // Off by default: useful when comparing models, noise otherwise.
     showGenerationStats: integer('show_generation_stats', { mode: 'boolean' })
       .notNull()
       .default(false),

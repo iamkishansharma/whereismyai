@@ -43,6 +43,7 @@
     "llama.rn": "0.12.9",
     "react": "19.2.3",
     "react-native": "0.87.0",
+    "react-native-bootsplash": "7.3.2",
     "react-native-enriched-markdown": "^1.0.2",
     "react-native-gesture-handler": "^3.2.1",
     "react-native-image-picker": "^8.2.1",

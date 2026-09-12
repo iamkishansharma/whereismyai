@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
 import { useChatStore, useHydrated } from '@/features/chat';
@@ -33,10 +33,8 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
         ]);
         await hydrate();
       } catch (cause) {
-        // Without this the rejection went unhandled and `hydrated` simply
-        // never became true, leaving a spinner on screen forever with no clue
-        // as to why. A database a migration failed to bring up to date — an
-        // install over an older schema, say — landed here.
+        // Unhandled, this left `hydrated` false and a spinner on screen
+        // forever with nothing explaining why.
         setHydrationError(
           cause instanceof Error ? cause : new Error(String(cause)),
         );
@@ -74,9 +72,28 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
   }
 
   if (!success || !hydrated) {
+    // Continues the native splash rather than replacing it: same logo, same
+    // background, same position.
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator />
+      <View style={[styles.splash, { backgroundColor: colors.background }]}>
+        <View style={styles.splashCentre}>
+          <Image
+            source={require('@/assets/wima-logo.png')}
+            style={styles.logo}
+            accessibilityIgnoresInvertColors
+          />
+        </View>
+
+        <View style={styles.splashFooter}>
+          <Text variant="titleMedium">Where Is My AI</Text>
+          <Text
+            variant="bodySmall"
+            style={[styles.tagline, { color: colors.onSurfaceVariant }]}
+          >
+            It's right here on your phone.
+          </Text>
+          <ActivityIndicator style={styles.splashSpinner} size="small" />
+        </View>
       </View>
     );
   }
@@ -94,6 +111,31 @@ const styles = StyleSheet.create({
   },
   detail: {
     textAlign: 'center',
+  },
+  splash: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  splashCentre: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  // Matches the native splash's logo width, so it does not jump.
+  logo: {
+    width: 120,
+    height: 120,
+    borderRadius: 28,
+  },
+  splashFooter: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  tagline: {
+    textAlign: 'center',
+  },
+  splashSpinner: {
+    marginTop: 20,
   },
 });
 

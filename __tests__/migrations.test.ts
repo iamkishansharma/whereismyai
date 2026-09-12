@@ -74,16 +74,9 @@ describe('migrations', () => {
     db.close();
   });
 
-  /**
-   * The migrations and `schema.ts` must not drift apart.
-   *
-   * Drizzle reads queries off the TypeScript schema, so a column declared
-   * there but never created by a migration is not a type error — it is a
-   * "no such column" thrown at the user on first launch, with the whole app
-   * behind it. Exactly that shipped once: `show_generation_stats` was added to
-   * the schema after the baseline had been generated, and nothing noticed
-   * until a device refused to open its database.
-   */
+  // Drizzle queries off the TypeScript schema, so a column declared there but
+  // never migrated is not a type error — it is "no such column" thrown at the
+  // user on first launch. That shipped once.
   it('creates every column the schema declares', () => {
     const db = migrate();
 

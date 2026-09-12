@@ -1,1 +1,1 @@
-export { WIMATheme } from './palette';
+export { WIMAITheme } from './palette';

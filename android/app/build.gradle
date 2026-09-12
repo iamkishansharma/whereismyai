@@ -96,7 +96,7 @@ android {
     def resolveSecret = { String name ->
         project.findProperty(name) ?: System.getenv(name)
     }
-    def uploadStoreFile = resolveSecret('WIMA_UPLOAD_STORE_FILE')
+    def uploadStoreFile = resolveSecret('WIMAI_UPLOAD_STORE_FILE')
     def hasUploadKey = uploadStoreFile != null && file(uploadStoreFile).exists()
 
     signingConfigs {
@@ -109,9 +109,9 @@ android {
         if (hasUploadKey) {
             release {
                 storeFile file(uploadStoreFile)
-                storePassword resolveSecret('WIMA_UPLOAD_STORE_PASSWORD')
-                keyAlias resolveSecret('WIMA_UPLOAD_KEY_ALIAS')
-                keyPassword resolveSecret('WIMA_UPLOAD_KEY_PASSWORD')
+                storePassword resolveSecret('WIMAI_UPLOAD_STORE_PASSWORD')
+                keyAlias resolveSecret('WIMAI_UPLOAD_KEY_ALIAS')
+                keyPassword resolveSecret('WIMAI_UPLOAD_KEY_PASSWORD')
             }
         }
     }
