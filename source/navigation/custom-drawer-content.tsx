@@ -14,6 +14,7 @@ import {
   Portal,
   Text,
   TextInput,
+  Tooltip,
   TouchableRipple,
   useTheme,
 } from 'react-native-paper';
@@ -252,17 +253,20 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
           onPress={openSettings}
           left={props => <List.Icon {...props} icon="cog-outline" />}
         />
-        <Button
-          style={{ position: 'absolute', right: 16 }}
-          mode="contained"
-          icon="plus"
-          accessibilityLabel="New Chat"
-          onPress={() => {
-            openConversation(undefined);
-          }}
-        >
-          New Chat
-        </Button>
+        <View style={{ position: 'absolute', right: 16 }}>
+          <Tooltip title="Create a new chat">
+            <Button
+              mode="contained"
+              icon="plus"
+              accessibilityLabel="New Chat"
+              onPress={() => {
+                openConversation(undefined);
+              }}
+            >
+              New
+            </Button>
+          </Tooltip>
+        </View>
       </View>
 
       <Portal>

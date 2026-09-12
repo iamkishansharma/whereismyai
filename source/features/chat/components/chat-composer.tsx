@@ -251,8 +251,34 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
                 </Button>
               </View>
 
+              <IconButton
+                size={22}
+                mode="contained"
+                icon={isStreaming ? 'stop' : 'arrow-up'}
+                iconColor={isStreaming ? colors.error : colors.primary}
+                // disabled={!isStreaming }
+                onPress={() => {
+                  if (isStreaming) {
+                    onStop();
+                  } else if (canSend) {
+                    handleSend();
+                  } else if (!hasModel) {
+                    navigation.navigate(modelRoute);
+                  }
+                }}
+                accessibilityLabel={
+                  isStreaming ? 'Stop generating' : 'Send message'
+                }
+                style={[styles.button, { alignSelf: 'flex-end' }]}
+              />
+
               <View
-                style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 4,
+                  display: 'none',
+                }}
               >
                 {/* TODO:: Voice input */}
                 <Tooltip title="Coming soon!" enterTouchDelay={0}>
