@@ -9,6 +9,7 @@ import {
   Dialog,
   Divider,
   Icon,
+  IconButton,
   List,
   Menu,
   Portal,
@@ -19,50 +20,49 @@ import {
   useTheme,
 } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LegendList } from '@legendapp/list/react-native';
-import dayjs from 'dayjs';
+import { SectionList } from '@legendapp/list/section-list';
 
 import {
+  ConversationSearch,
   useChatStore,
-  useConversationOrder,
+  useConversationSections,
   useIsActiveConversation,
 } from '@/features/chat';
+import type { ConversationSummary } from '@/features/chat';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 
 const ROW_HEIGHT = 56;
 
 const ConversationRow = ({
-  conversationId,
+  conversation,
   onPress,
   onDelete,
   onRename,
 }: {
-  conversationId: string;
+  conversation: ConversationSummary;
   onPress: () => void;
   onDelete: () => void;
   onRename: () => void;
 }) => {
   const { colors } = useTheme();
-  const conversation = useChatStore(
-    state => state.conversations[conversationId],
-  );
-  const isActive = useIsActiveConversation(conversationId);
+  // Title and time arrive as data — the day header already needed them, so a
+  // per-row store subscription for the same fields would be pure overhead.
+  const isActive = useIsActiveConversation(conversation.id);
   const [menuOpen, setMenuOpen] = useState(false);
-
-  if (!conversation) {
-    return null;
-  }
 
   return (
     <List.Item
       title={conversation.title}
       titleNumberOfLines={1}
-      description={dayjs(conversation.updatedAt).format('MMM D, h:mm A')}
+      description={conversation.time}
+      descriptionNumberOfLines={2}
       descriptionStyle={{ color: colors.onSurfaceVariant }}
       onPress={onPress}
       style={[
         styles.row,
         isActive && { backgroundColor: colors.surfaceVariant },
       ]}
+      onLongPress={() => setMenuOpen(true)}
       titleStyle={isActive ? styles.activeTitle : styles.inactiveTitle}
       right={props => (
         <Menu
@@ -75,7 +75,11 @@ const ConversationRow = ({
               accessibilityLabel={`Options for ${conversation.title}`}
               style={[props.style, styles.menuAnchor]}
             >
-              <Icon color={props.color} size={22} source="dots-vertical" />
+              {isActive ? (
+                <Icon color={props.color} size={22} source="dots-vertical" />
+              ) : (
+                <></>
+              )}
             </TouchableRipple>
           }
           contentStyle={styles.menuContent}
@@ -107,7 +111,7 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
   const { colors } = useTheme();
   const drawerStatus = useDrawerStatus();
 
-  const conversationOrder = useConversationOrder();
+  const sections = useConversationSections();
   const activeId = useChatStore(state => state.activeConversationId);
 
   const deleteConversation = useChatStore(s => s.deleteConversation);
@@ -115,6 +119,8 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
 
   const [renamingId, setRenamingId] = useState<string>();
   const [renameText, setRenameText] = useState('');
+  const [showSearchBar, setShowSearchBar] = useState(false);
+  const [searching, setSearching] = useState(false);
 
   useEffect(() => {
     if (drawerStatus === 'open') {
@@ -176,34 +182,40 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
     >
       <List.Item
         title="Where Is My AI"
-        titleStyle={{ fontWeight: 'bold', fontSize: 18 }}
-        description={
-          <View style={{ paddingTop: 3 }}>
-            <Text
-              style={{
-                color: colors.onSurfaceVariant,
-                fontSize: 12,
-              }}
-            >
-              Your local AI assistant
-            </Text>
-            <Text style={{ color: colors.onSurfaceVariant, fontSize: 12 }}>
-              Version 1.0.0
-            </Text>
-          </View>
-        }
+        titleStyle={{ fontWeight: 'bold', fontSize: 16 }}
+        description="an Open-source, customizable & private AI assistant"
         left={props => (
           <List.Image
             {...props}
             source={require('@/assets/wima-logo.png')}
-            style={{ borderRadius: 8, ...props.style }}
+            style={{ borderRadius: 16, ...props.style }}
+          />
+        )}
+        right={props => (
+          <IconButton
+            {...props}
+            icon="magnify"
+            style={{ ...props.style, marginRight: 0, marginLeft: 0 }}
+            onPress={() => {
+              setShowSearchBar(!showSearchBar);
+            }}
+            size={22}
+            mode={showSearchBar ? 'contained-tonal' : undefined}
           />
         )}
       />
 
-      <Divider />
+      {showSearchBar && (
+        <Animated.View entering={FadeInUp.duration(200)}>
+          <ConversationSearch
+            autoFocus={showSearchBar}
+            onOpen={openConversation}
+            onSearchingChange={setSearching}
+          />
+        </Animated.View>
+      )}
 
-      {conversationOrder.length === 0 ? (
+      {searching ? null : sections.length === 0 ? (
         <View style={styles.empty}>
           <Icon
             source="message-outline"
@@ -218,18 +230,38 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
           </Text>
         </View>
       ) : (
-        <LegendList
-          data={conversationOrder}
-          keyExtractor={id => id}
+        <SectionList
+          sections={sections}
+          keyExtractor={item => item.id}
           estimatedItemSize={ROW_HEIGHT}
-          style={styles.list}
+          stickySectionHeadersEnabled
+          style={[
+            styles.list,
+            {
+              marginBottom: insets.bottom + ROW_HEIGHT,
+            },
+          ]}
           contentContainerStyle={styles.listContent}
+          renderSectionHeader={({ section }) => (
+            <Text
+              variant="labelSmall"
+              style={[
+                styles.sectionHeader,
+                {
+                  color: colors.onSurfaceVariant,
+                  backgroundColor: colors.background,
+                },
+              ]}
+            >
+              {section.title}
+            </Text>
+          )}
           renderItem={({ item }) => (
             <ConversationRow
-              conversationId={item}
-              onPress={() => openConversation(item)}
-              onDelete={() => handleDelete(item)}
-              onRename={() => startRename(item)}
+              conversation={item}
+              onPress={() => openConversation(item.id)}
+              onDelete={() => handleDelete(item.id)}
+              onRename={() => startRename(item.id)}
             />
           )}
         />
@@ -243,8 +275,11 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
           alignItems: 'center',
           flexDirection: 'row',
           justifyContent: 'space-between',
-          marginVertical: 16,
-          position: 'relative',
+          position: 'absolute',
+          height: ROW_HEIGHT,
+          bottom: insets.bottom,
+          left: 0,
+          right: 0,
         }}
       >
         <List.Item
@@ -331,6 +366,13 @@ const styles = StyleSheet.create({
   },
   dialog: {
     borderRadius: 20,
+  },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
   },
   empty: {
     flex: 1,

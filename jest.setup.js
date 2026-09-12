@@ -12,10 +12,6 @@ jest.mock('react-native-keyboard-controller', () =>
   require('react-native-keyboard-controller/jest'),
 );
 
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest'),
-);
-
 // Native modules with no JS fallback. Without these any test that mounts the
 // app fails on a missing base module rather than on anything it meant to check.
 jest.mock('@op-engineering/op-sqlite', () => ({

@@ -6,7 +6,12 @@ import {
   type TokenData,
 } from 'llama.rn';
 
-import type { GenerationSettings, InstalledModel, ModelInfo } from '@/types';
+import type {
+  GenerationSettings,
+  GenerationStats,
+  InstalledModel,
+  ModelInfo,
+} from '@/types';
 import { IMAGE_TOKEN_COST, VISION_MIN_CTX } from './context-window';
 
 const VISION_MAX_TOKENS = IMAGE_TOKEN_COST;
@@ -113,6 +118,36 @@ export function ensureLoaded(
   return loading;
 }
 
+/**
+ * Pull the numbers worth keeping out of a completion result.
+ *
+ * Returns undefined when nothing was generated — a cancelled or overflowed
+ * reply has no speed to report, and storing zeroes would make the transcript
+ * claim the model ran at 0 tokens a second.
+ */
+function statsFrom(
+  result: {
+    tokens_predicted?: number;
+    tokens_evaluated?: number;
+    timings?: { predicted_per_second?: number };
+  },
+  startedAt: number,
+  firstTokenAt?: number,
+): GenerationStats | undefined {
+  const tokensPredicted = result.tokens_predicted ?? 0;
+  if (tokensPredicted <= 0) {
+    return undefined;
+  }
+
+  return {
+    tokensPredicted,
+    tokensEvaluated: result.tokens_evaluated ?? 0,
+    tokensPerSecond: result.timings?.predicted_per_second ?? 0,
+    msToFirstToken: firstTokenAt ? firstTokenAt - startedAt : undefined,
+    totalMs: Date.now() - startedAt,
+  };
+}
+
 export interface CompletionHandle {
   cancel: () => void;
 }
@@ -124,6 +159,8 @@ export interface CompletionOutcome {
   contextFull?: boolean;
   /** llama.rn dropped tokens off the front of the prompt to make it fit. */
   truncated?: boolean;
+  /** What the reply cost, once one was actually produced. */
+  stats?: GenerationStats;
 }
 
 export function runCompletion(
@@ -134,6 +171,13 @@ export function runCompletion(
   onDone: (outcome: CompletionOutcome) => void,
 ): CompletionHandle {
   let cancelled = false;
+
+  // llama.cpp reports how long generation took but not how long the user
+  // waited for it to start, and the prompt pass can dominate that on a phone.
+  // The gap between asking and the first token appearing is the one number
+  // that matches what the wait actually felt like.
+  const startedAt = Date.now();
+  let firstTokenAt: number | undefined;
 
   ctx
     .completion(
@@ -147,6 +191,7 @@ export function runCompletion(
       },
       (data: TokenData) => {
         if (!cancelled) {
+          firstTokenAt ??= Date.now();
           onToken(data.token);
         }
       },
@@ -158,6 +203,7 @@ export function runCompletion(
         stopped: cancelled,
         contextFull: result.context_full,
         truncated: result.truncated,
+        stats: statsFrom(result, startedAt, firstTokenAt),
       }),
     )
     .catch((error: unknown) =>

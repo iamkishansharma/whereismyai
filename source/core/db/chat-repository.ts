@@ -1,14 +1,30 @@
 import { asc, desc, eq } from 'drizzle-orm';
 
-import type { Attachment, Conversation, Message, MessageStatus } from '@/types';
-import { db } from './client';
+import { toFileUrl, toRelative } from '@/core/paths';
+import type {
+  Attachment,
+  Conversation,
+  GenerationStats,
+  Message,
+  MessageStatus,
+} from '@/types';
+import { atomically, db } from './client';
 import { attachments, conversations, messages } from './schema';
 import type { AttachmentRow, ConversationRow, MessageRow } from './schema';
 
-export interface ChatSnapshot {
-  conversations: Record<string, Conversation>;
-  conversationOrder: string[];
-  messages: Record<string, Message>;
+function toAttachment(row: AttachmentRow): Attachment {
+  return {
+    id: row.id,
+    messageId: row.messageId,
+    kind: row.kind,
+    // Stored relative; callers want something they can render and hand to
+    // llama.rn, so the absolute URL is rebuilt on the way out.
+    uri: toFileUrl(row.relPath),
+    mimeType: row.mimeType ?? undefined,
+    width: row.width ?? undefined,
+    height: row.height ?? undefined,
+    sizeBytes: row.sizeBytes ?? undefined,
+  };
 }
 
 function toMessage(row: MessageRow, files: Attachment[]): Message {
@@ -21,20 +37,19 @@ function toMessage(row: MessageRow, files: Attachment[]): Message {
     status: row.status,
     error: row.error ?? undefined,
     modelId: row.modelId ?? undefined,
+    modelName: row.modelName ?? undefined,
+    // Only assistant turns that actually generated carry these.
+    stats:
+      row.tokensPredicted !== null && row.tokensPredicted !== undefined
+        ? {
+            tokensPredicted: row.tokensPredicted,
+            tokensEvaluated: row.tokensEvaluated ?? 0,
+            tokensPerSecond: row.tokensPerSecond ?? 0,
+            msToFirstToken: row.msToFirstToken ?? undefined,
+            totalMs: row.totalMs ?? 0,
+          }
+        : undefined,
     attachments: files.length ? files : undefined,
-  };
-}
-
-function toAttachment(row: AttachmentRow): Attachment {
-  return {
-    id: row.id,
-    messageId: row.messageId,
-    kind: row.kind,
-    uri: row.uri,
-    mimeType: row.mimeType ?? undefined,
-    width: row.width ?? undefined,
-    height: row.height ?? undefined,
-    sizeBytes: row.sizeBytes ?? undefined,
   };
 }
 
@@ -53,46 +68,41 @@ function toConversation(
   };
 }
 
-export async function loadChatSnapshot(): Promise<ChatSnapshot> {
-  const [conversationRows, messageRows, attachmentRows] = await Promise.all([
-    db.select().from(conversations).orderBy(desc(conversations.updatedAt)),
-    db.select().from(messages).orderBy(asc(messages.createdAt)),
-    db.select().from(attachments),
+/** Conversation metadata only — no messages. Cheap enough to run at startup. */
+export async function loadConversations(): Promise<Conversation[]> {
+  const rows = await db
+    .select()
+    .from(conversations)
+    .orderBy(desc(conversations.updatedAt));
+
+  return rows.map(row => toConversation(row, []));
+}
+
+/** Every message in one conversation, oldest first, with its attachments. */
+export async function loadMessages(conversationId: string): Promise<Message[]> {
+  const [messageRows, attachmentRows] = await Promise.all([
+    db
+      .select()
+      .from(messages)
+      .where(eq(messages.conversationId, conversationId))
+      .orderBy(asc(messages.createdAt)),
+    db
+      .select({ attachment: attachments })
+      .from(attachments)
+      .innerJoin(messages, eq(attachments.messageId, messages.id))
+      .where(eq(messages.conversationId, conversationId)),
   ]);
 
   const filesByMessage = new Map<string, Attachment[]>();
-  for (const row of attachmentRows) {
-    const list = filesByMessage.get(row.messageId) ?? [];
-    list.push(toAttachment(row));
-    filesByMessage.set(row.messageId, list);
+  for (const { attachment } of attachmentRows) {
+    const list = filesByMessage.get(attachment.messageId) ?? [];
+    list.push(toAttachment(attachment));
+    filesByMessage.set(attachment.messageId, list);
   }
 
-  const idsByConversation = new Map<string, string[]>();
-  const messageMap: Record<string, Message> = {};
-
-  for (const row of messageRows) {
-    messageMap[row.id] = toMessage(row, filesByMessage.get(row.id) ?? []);
-    const list = idsByConversation.get(row.conversationId) ?? [];
-    list.push(row.id);
-    idsByConversation.set(row.conversationId, list);
-  }
-
-  const conversationMap: Record<string, Conversation> = {};
-  const order: string[] = [];
-
-  for (const row of conversationRows) {
-    conversationMap[row.id] = toConversation(
-      row,
-      idsByConversation.get(row.id) ?? [],
-    );
-    order.push(row.id);
-  }
-
-  return {
-    conversations: conversationMap,
-    conversationOrder: order,
-    messages: messageMap,
-  };
+  return messageRows.map(row =>
+    toMessage(row, filesByMessage.get(row.id) ?? []),
+  );
 }
 
 export async function insertConversation(
@@ -137,8 +147,12 @@ export async function deleteConversation(
   await db.delete(conversations).where(eq(conversations.id, conversationId));
 }
 
+/**
+ * The message and its images land together or not at all — otherwise a crash in
+ * between leaves files on disk that no row points at.
+ */
 export async function insertMessage(message: Message): Promise<void> {
-  await db.insert(messages).values({
+  const insertRow = db.insert(messages).values({
     id: message.id,
     conversationId: message.conversationId,
     role: message.role,
@@ -146,28 +160,40 @@ export async function insertMessage(message: Message): Promise<void> {
     status: message.status,
     error: message.error ?? null,
     modelId: message.modelId ?? null,
+    modelName: message.modelName ?? null,
     createdAt: message.createdAt,
   });
 
-  if (message.attachments?.length) {
-    await db.insert(attachments).values(
+  if (!message.attachments?.length) {
+    await insertRow;
+    return;
+  }
+
+  await atomically(
+    insertRow,
+    db.insert(attachments).values(
       message.attachments.map(file => ({
         id: file.id,
         messageId: message.id,
         kind: file.kind,
-        uri: file.uri,
+        relPath: toRelative(file.uri),
         mimeType: file.mimeType ?? null,
         width: file.width ?? null,
         height: file.height ?? null,
         sizeBytes: file.sizeBytes ?? null,
       })),
-    );
-  }
+    ),
+  );
 }
 
 export async function updateMessage(
   messageId: string,
-  patch: { content?: string; status?: MessageStatus; error?: string },
+  patch: {
+    content?: string;
+    status?: MessageStatus;
+    error?: string;
+    stats?: GenerationStats;
+  },
 ): Promise<void> {
   await db
     .update(messages)
@@ -175,13 +201,61 @@ export async function updateMessage(
       ...(patch.content !== undefined ? { content: patch.content } : null),
       ...(patch.status !== undefined ? { status: patch.status } : null),
       ...(patch.error !== undefined ? { error: patch.error ?? null } : null),
+      ...(patch.stats
+        ? {
+            tokensPredicted: patch.stats.tokensPredicted,
+            tokensEvaluated: patch.stats.tokensEvaluated,
+            tokensPerSecond: patch.stats.tokensPerSecond,
+            msToFirstToken: patch.stats.msToFirstToken ?? null,
+            totalMs: patch.stats.totalMs,
+          }
+        : null),
     })
     .where(eq(messages.id, messageId));
 }
 
+/** A reply that was mid-flight when the app died is not still generating. */
 export async function resetStreamingMessages(): Promise<void> {
   await db
     .update(messages)
     .set({ status: 'stopped' })
     .where(eq(messages.status, 'streaming'));
+}
+
+/** Relative paths of every stored image, for reconciling against the disk. */
+export async function loadAttachmentPaths(): Promise<string[]> {
+  const rows = await db
+    .select({ relPath: attachments.relPath })
+    .from(attachments);
+  return rows.map(row => row.relPath);
+}
+
+/**
+ * Rewrites any row still holding an absolute path. The migration that
+ * introduced `rel_path` renamed the old `uri` column to keep existing images,
+ * but the values it inherited were absolute and would resolve to nonsense.
+ */
+export async function normalizeAttachmentPaths(): Promise<number> {
+  const rows = await db
+    .select({ id: attachments.id, relPath: attachments.relPath })
+    .from(attachments);
+
+  const stale = rows
+    .map(row => ({ id: row.id, relPath: toRelative(row.relPath) }))
+    .filter((row, index) => row.relPath !== rows[index].relPath);
+
+  if (!stale.length) {
+    return 0;
+  }
+
+  await atomically(
+    ...stale.map(row =>
+      db
+        .update(attachments)
+        .set({ relPath: row.relPath })
+        .where(eq(attachments.id, row.id)),
+    ),
+  );
+
+  return stale.length;
 }

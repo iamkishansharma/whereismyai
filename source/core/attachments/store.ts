@@ -1,16 +1,12 @@
-import {
-  DocumentDirectoryPath,
-  copyFile,
-  exists,
-  mkdir,
-} from '@dr.pogodin/react-native-fs';
+import { copyFile, exists, mkdir } from '@dr.pogodin/react-native-fs';
 import uuid from 'react-native-uuid';
 import type { Asset } from 'react-native-image-picker';
 
 import { removeFile } from '@/core/fs';
+import { ATTACHMENTS_DIR } from '@/core/paths';
 import type { Attachment } from '@/types';
 
-export const ATTACHMENT_DIR = `${DocumentDirectoryPath}/attachments`;
+export const ATTACHMENT_DIR = ATTACHMENTS_DIR;
 
 async function ensureAttachmentDir(): Promise<void> {
   if (!(await exists(ATTACHMENT_DIR))) {

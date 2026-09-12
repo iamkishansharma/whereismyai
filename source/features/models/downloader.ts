@@ -1,5 +1,4 @@
 import {
-  DocumentDirectoryPath,
   downloadFile,
   exists,
   mkdir,
@@ -8,10 +7,10 @@ import {
 } from '@dr.pogodin/react-native-fs';
 
 import { removeFile } from '@/core/fs';
-import { MODEL_DIR_NAME } from './constants';
+import { MODELS_DIR } from '@/core/paths';
 import { buildDownloadUrl } from './huggingface';
 
-export const MODEL_DIR = `${DocumentDirectoryPath}/${MODEL_DIR_NAME}`;
+export const MODEL_DIR = MODELS_DIR;
 
 export function modelPath(modelId: string): string {
   return `${MODEL_DIR}/${modelId}.gguf`;

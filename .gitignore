@@ -32,7 +32,10 @@ local.properties
 *.hprof
 .cxx/
 *.keystore
+*.jks
 !debug.keystore
+# Signing secrets, if you keep them beside the project instead of ~/.gradle
+android/keystore.properties
 .kotlin/
 
 # node.js

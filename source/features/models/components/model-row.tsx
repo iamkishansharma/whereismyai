@@ -5,7 +5,6 @@ import {
   IconButton,
   List,
   ProgressBar,
-  Text,
   useTheme,
 } from 'react-native-paper';
 
@@ -72,6 +71,11 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
             <List.Icon {...props} icon="cube-outline" />
           )
         }
+        // style={
+        //   installed && isSelected
+        //     ? { backgroundColor: colors.surfaceVariant }
+        //     : undefined
+        // }
         right={() => {
           if (task) {
             return (
@@ -133,15 +137,6 @@ const ModelRow = ({ id, name, subtitle, file, onPress }: ModelRowProps) => {
           style={styles.progress}
         />
       )}
-
-      {installed && isSelected && (
-        <Text
-          variant="labelSmall"
-          style={[styles.badge, { color: colors.primary }]}
-        >
-          Active model
-        </Text>
-      )}
     </View>
   );
 };
@@ -156,10 +151,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     height: 3,
     borderRadius: 2,
-  },
-  badge: {
-    marginLeft: 16,
-    marginBottom: 8,
   },
 });
 

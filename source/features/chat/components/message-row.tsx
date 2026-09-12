@@ -5,6 +5,8 @@ import { Avatar, IconButton, Text, useTheme } from 'react-native-paper';
 import ImageViewer from '@/shared/ui/image-viewer';
 import { useIsTrimPoint, useMessage } from '../store';
 import { useMessageModelName } from './use-message-model-name';
+import MessageStats from './message-stats';
+import { useShowGenerationStats } from '@/features/settings/store';
 import MarkdownMessage, { PlainMessage } from './markdown-message';
 import TypingIndicator from './typing-indicator';
 
@@ -32,8 +34,9 @@ const TrimNotice = () => {
 const MessageRow = ({ messageId }: { messageId: string }) => {
   const message = useMessage(messageId);
   const isTrimPoint = useIsTrimPoint(messageId);
-  const modelTitle = useMessageModelName(message?.modelId);
+  const modelTitle = useMessageModelName(message?.modelId, message?.modelName);
   const { colors } = useTheme();
+  const [showStats] = useShowGenerationStats();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   // Deleting a conversation unmounts its rows a frame after the message is
@@ -174,6 +177,8 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
             size={18}
             onPress={() => {}}
           />
+
+          {showStats && message.stats && <MessageStats stats={message.stats} />}
         </View>
       )}
     </View>
@@ -232,6 +237,7 @@ const styles = StyleSheet.create({
   },
   messageActionsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 4,
   },

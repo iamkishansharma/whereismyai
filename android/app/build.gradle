@@ -83,8 +83,22 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
+    // Release signing comes from Gradle properties or the environment, never
+    // from a committed file. This is a public repository: most people building
+    // it will not have the upload key, so `release` falls back to debug signing
+    // rather than failing — a contributor can still build a release APK to test
+    // performance. Only builds signed with the real key are uploadable.
+    //
+    // Set these in ~/.gradle/gradle.properties (outside the repo) or as env
+    // vars. See "Release builds" in README.md.
+    def resolveSecret = { String name ->
+        project.findProperty(name) ?: System.getenv(name)
+    }
+    def uploadStoreFile = resolveSecret('WIMA_UPLOAD_STORE_FILE')
+    def hasUploadKey = uploadStoreFile != null && file(uploadStoreFile).exists()
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -92,15 +106,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasUploadKey) {
+            release {
+                storeFile file(uploadStoreFile)
+                storePassword resolveSecret('WIMA_UPLOAD_STORE_PASSWORD')
+                keyAlias resolveSecret('WIMA_UPLOAD_KEY_ALIAS')
+                keyPassword resolveSecret('WIMA_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

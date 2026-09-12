@@ -1,36 +1,60 @@
 import { useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
-import type { ThemeColor, ThemeMode } from '@/types';
+
+import { loadAppState, saveAppState } from '@/core/db/app-state-repository';
+import type { ThemeMode } from '@/types';
 
 interface SettingsStore {
+  hydrated: boolean;
   showOnboarding: boolean;
-  setShowOnboarding: (done: boolean) => void;
   themeMode: ThemeMode;
+  /** Whether replies show what they cost — tokens, speed, time. */
+  showGenerationStats: boolean;
+  hydrate: () => Promise<void>;
+  setShowOnboarding: (done: boolean) => void;
   setThemeMode: (mode: ThemeMode) => void;
-  themeColor: ThemeColor;
-  setThemeColor: (color: ThemeColor) => void;
+  setShowGenerationStats: (show: boolean) => void;
 }
 
-const useSettingsStore = create<SettingsStore>()(
-  persist(
-    set => ({
-      showOnboarding: true,
-      setShowOnboarding: showOnboarding => set({ showOnboarding }),
-      themeMode: 'light',
-      setThemeMode: themeMode => set({ themeMode }),
-      themeColor: 'monochrome',
-      setThemeColor: themeColor => {
-        set({ themeColor });
-      },
-    }),
-    {
-      name: 'default-store',
-      storage: createJSONStorage(() => AsyncStorage),
-    },
-  ),
-);
+/**
+ * Backed by the `app_state` row rather than AsyncStorage, so the whole app has
+ * one store and one migration story. Defaults apply until `hydrate` resolves —
+ * the theme is read before the database gate opens.
+ */
+const useSettingsStore = create<SettingsStore>()((set, get) => ({
+  hydrated: false,
+  showOnboarding: true,
+  themeMode: 'system',
+  showGenerationStats: false,
+
+  hydrate: async () => {
+    if (get().hydrated) {
+      return;
+    }
+    const state = await loadAppState();
+    set({
+      hydrated: true,
+      showOnboarding: !state.onboardingDone,
+      themeMode: state.themeMode,
+      showGenerationStats: state.showGenerationStats,
+    });
+  },
+
+  setShowOnboarding: showOnboarding => {
+    set({ showOnboarding });
+    void saveAppState({ onboardingDone: !showOnboarding });
+  },
+
+  setThemeMode: themeMode => {
+    set({ themeMode });
+    void saveAppState({ themeMode });
+  },
+
+  setShowGenerationStats: showGenerationStats => {
+    set({ showGenerationStats });
+    void saveAppState({ showGenerationStats });
+  },
+}));
 
 export default useSettingsStore;
 
@@ -38,25 +62,20 @@ export default useSettingsStore;
 export const useShowOnboarding = () =>
   useSettingsStore(state => state.showOnboarding);
 
-/**
- * Read/write the theme preference ('system' | 'light' | 'dark').
- */
 export function useThemeMode() {
   const themeMode = useSettingsStore(state => state.themeMode);
   const setThemeMode = useSettingsStore(state => state.setThemeMode);
   return [themeMode, setThemeMode] as const;
 }
 
-/**
- * Resolve the effective dark-mode flag, honouring the OS scheme
- * when the preference is 'system'.
- */
-export function useIsDarkMode() {
-  const themeMode = useSettingsStore(state => state.themeMode);
-  const systemScheme = useColorScheme();
+export function useShowGenerationStats() {
+  const show = useSettingsStore(state => state.showGenerationStats);
+  const setShow = useSettingsStore(state => state.setShowGenerationStats);
+  return [show, setShow] as const;
+}
 
-  if (themeMode === 'system') {
-    return systemScheme === 'dark';
-  }
-  return themeMode === 'dark';
+export function useIsDarkMode() {
+  const scheme = useColorScheme();
+  const themeMode = useSettingsStore(state => state.themeMode);
+  return themeMode === 'system' ? scheme === 'dark' : themeMode === 'dark';
 }
