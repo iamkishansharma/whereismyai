@@ -1,26 +1,16 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  StatusBar,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
 import { useChatStore, useHydrated } from '@/features/chat';
 import useModelStore from '@/features/models/store';
-import useSettingsStore from '@/features/settings/store';
+import useSettingsStore, { useIsDarkMode } from '@/features/settings/store';
 import { useDatabaseMigrations } from '@/core/db';
 import { reconcileAttachments } from '@/core/attachments';
 
-// Matches bootsplash_background and the logo's own background exactly.
-const SPLASH_BACKGROUND = '#000000';
-const SPLASH_TEXT = '#FFFFFF';
-const SPLASH_MUTED = 'rgba(255, 255, 255, 0.6)';
-
 const DatabaseGate = ({ children }: { children: ReactNode }) => {
   const { colors } = useTheme();
+  const isDarkMode = useIsDarkMode();
   const { success, error: migrationError } = useDatabaseMigrations();
   const hydrated = useHydrated();
   const hydrate = useChatStore(state => state.hydrate);
@@ -83,34 +73,32 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
   }
 
   if (!success || !hydrated) {
-    // Continues the native splash rather than replacing it, so its colours are
-    // fixed rather than themed: the splash behind it is black either way, and
-    // the logo is a light mark on its own black square.
+    // Continues the native splash: same mark, same size, same background, so
+    // the handover is invisible. The asset names describe the mark's colour,
+    // not the mode — the light one belongs on the dark background.
     return (
-      <View style={styles.splash}>
-        {/* Last mounted wins, so this reverts to the themed bar on unmount. */}
-        <StatusBar barStyle="light-content" />
-
+      <View style={[styles.splash, { backgroundColor: colors.background }]}>
         <View style={styles.splashCentre}>
           <Image
-            source={require('@/assets/wima-logo.png')}
+            source={
+              isDarkMode
+                ? require('@/assets/wima-logo-tr-light.png')
+                : require('@/assets/wima-logo-tr-dark.png')
+            }
             style={styles.logo}
             accessibilityIgnoresInvertColors
           />
         </View>
 
         <View style={styles.splashFooter}>
-          <Text variant="titleMedium" style={styles.splashTitle}>
-            Where Is My AI
-          </Text>
-          <Text variant="bodySmall" style={styles.tagline}>
+          <Text variant="titleMedium">Where Is My AI</Text>
+          <Text
+            variant="bodySmall"
+            style={[styles.tagline, { color: colors.onSurfaceVariant }]}
+          >
             It's right here on your phone.
           </Text>
-          <ActivityIndicator
-            style={styles.splashSpinner}
-            size="small"
-            color={SPLASH_TEXT}
-          />
+          <ActivityIndicator style={styles.splashSpinner} size="small" />
         </View>
       </View>
     );
@@ -134,28 +122,22 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     paddingVertical: 64,
-    backgroundColor: SPLASH_BACKGROUND,
   },
   splashCentre: {
     flex: 1,
     justifyContent: 'center',
   },
-  // Matches the native splash's logo width, and square like it — the corners
-  // are the logo's own black, invisible against the background.
+  // Matches the native splash's logo width, so it does not jump on handover.
   logo: {
-    width: 120,
-    height: 120,
+    width: 180,
+    height: 180,
   },
   splashFooter: {
     alignItems: 'center',
     gap: 4,
   },
-  splashTitle: {
-    color: SPLASH_TEXT,
-  },
   tagline: {
     textAlign: 'center',
-    color: SPLASH_MUTED,
   },
   splashSpinner: {
     marginTop: 20,

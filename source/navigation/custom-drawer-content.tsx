@@ -183,7 +183,7 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
       <List.Item
         title="Where Is My AI"
         titleStyle={{ fontWeight: 'bold', fontSize: 16 }}
-        description="an Open-source, customizable & private AI assistant"
+        description="Open-source, customizable & private AI assistant"
         left={props => (
           <List.Image
             {...props}
