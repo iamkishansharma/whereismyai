@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Text, useTheme } from 'react-native-paper';
 
@@ -10,9 +10,14 @@ import { reconcileAttachments } from '@/core/attachments';
 
 const DatabaseGate = ({ children }: { children: ReactNode }) => {
   const { colors } = useTheme();
-  const { success, error } = useDatabaseMigrations();
+  const { success, error: migrationError } = useDatabaseMigrations();
   const hydrated = useHydrated();
   const hydrate = useChatStore(state => state.hydrate);
+  const [hydrationError, setHydrationError] = useState<Error>();
+
+  // A failure reading the database is as fatal as a failure migrating it, and
+  // has the same remedy.
+  const error = migrationError ?? hydrationError;
 
   useEffect(() => {
     if (!success || hydrated) {
@@ -21,11 +26,22 @@ const DatabaseGate = ({ children }: { children: ReactNode }) => {
     // Everything now comes out of the same database, so nothing may render
     // until the migrations have run and all three stores have read from it.
     void (async () => {
-      await Promise.all([
-        useSettingsStore.getState().hydrate(),
-        useModelStore.getState().hydrate(),
-      ]);
-      await hydrate();
+      try {
+        await Promise.all([
+          useSettingsStore.getState().hydrate(),
+          useModelStore.getState().hydrate(),
+        ]);
+        await hydrate();
+      } catch (cause) {
+        // Without this the rejection went unhandled and `hydrated` simply
+        // never became true, leaving a spinner on screen forever with no clue
+        // as to why. A database a migration failed to bring up to date — an
+        // install over an older schema, say — landed here.
+        setHydrationError(
+          cause instanceof Error ? cause : new Error(String(cause)),
+        );
+        return;
+      }
       void useModelStore.getState().pruneMissingModels();
       void reconcileAttachments();
     })();
