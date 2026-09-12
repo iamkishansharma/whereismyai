@@ -17,7 +17,6 @@ export type DrawerParamList = {
 export type ChatStackParamList = {
   Chat: { conversationId?: string } | undefined;
   Settings: undefined;
-  ModelPicker: undefined;
   ModelLibrary: undefined;
   ModelDetail: { modelId: string };
   GenerationSettings: { modelId?: string } | undefined;
@@ -40,7 +39,6 @@ type ChatStackScreenProps<T extends keyof ChatStackParamList> =
 
 export type ChatScreenProps = ChatStackScreenProps<'Chat'>;
 export type SettingsScreenProps = ChatStackScreenProps<'Settings'>;
-export type ModelPickerScreenProps = ChatStackScreenProps<'ModelPicker'>;
 export type ModelLibraryScreenProps = ChatStackScreenProps<'ModelLibrary'>;
 export type ModelDetailScreenProps = ChatStackScreenProps<'ModelDetail'>;
 export type GenerationSettingsScreenProps =

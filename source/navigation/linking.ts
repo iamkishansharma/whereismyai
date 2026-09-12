@@ -21,7 +21,6 @@ export const linking: LinkingOptions<RootStackParamList> = {
                 parse: { conversationId: String },
               },
               Settings: 'settings',
-              ModelPicker: 'model',
               ModelLibrary: 'models',
               ModelDetail: 'models/:modelId',
               GenerationSettings: 'generation',

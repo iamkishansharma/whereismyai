@@ -30,11 +30,13 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useIsDarkMode } from '@/features/settings/store';
 import { BottomSheetModal, BottomSheetView } from '@gorhom/bottom-sheet';
 import SheetBackdrop from '@/shared/ui/sheet-backdrop';
+import BottomSheetHeader from '@/shared/ui/bottom-sheet-header';
 import { useNavigation } from '@react-navigation/native';
 import { ChatStackNavigation } from '@/navigation/chat-navigator';
 import { isIOS } from '@/shared/utils';
 import useModelStore, { useInstalledOrder } from '@/features/models/store';
 import { useEffectiveModel } from '@/features/models/use-effective-model';
+import { openModelPicker } from '@/features/models/use-model-picker';
 import { capturePhoto, pickFromLibrary } from '@/core/attachments';
 import { deleteAttachments } from '@/core/attachments';
 import AttachmentStrip from './attachment-strip';
@@ -79,9 +81,15 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
     const blindWithImages = files.length > 0 && !canSeeImages;
 
     // With nothing installed the library is the useful destination; otherwise
-    // the quick picker. Same rule the welcome card uses.
+    // the picker sheet. Same rule the welcome card uses.
     const installedCount = useInstalledOrder().length;
-    const modelRoute = installedCount ? 'ModelPicker' : 'ModelLibrary';
+    const showModelPicker = useCallback(() => {
+      if (installedCount) {
+        openModelPicker();
+      } else {
+        navigation.navigate('ModelLibrary');
+      }
+    }, [installedCount, navigation]);
 
     const hasModel = selectedModel !== undefined;
     const canSend = (text.trim().length > 0 || files.length > 0) && hasModel;
@@ -161,7 +169,7 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
           >
             {blindWithImages && (
               <TouchableRipple
-                onPress={() => navigation.navigate(modelRoute)}
+                onPress={showModelPicker}
                 style={[
                   styles.warning,
                   { backgroundColor: colors.errorContainer },
@@ -234,7 +242,7 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
                 />
 
                 <Button
-                  onPress={() => navigation.navigate(modelRoute)}
+                  onPress={showModelPicker}
                   mode="contained-tonal"
                   compact
                   style={{ maxWidth: 250 }}
@@ -263,7 +271,7 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
                   } else if (canSend) {
                     handleSend();
                   } else if (!hasModel) {
-                    navigation.navigate(modelRoute);
+                    showModelPicker();
                   }
                 }}
                 accessibilityLabel={
@@ -302,7 +310,7 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
                       } else if (canSend) {
                         handleSend();
                       } else if (!hasModel) {
-                        navigation.navigate(modelRoute);
+                        showModelPicker();
                       }
                     }}
                     accessibilityLabel={
@@ -341,12 +349,10 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
           topInset={insets.top}
         >
           <BottomSheetView style={{ paddingBottom: insets.bottom }}>
-            <Text
-              variant="titleLarge"
-              style={{ marginBottom: 8, marginLeft: 16 }}
-            >
-              Attachments
-            </Text>
+            <BottomSheetHeader
+              title="Attachments"
+              onClose={handleCloseBottomSheet}
+            />
 
             <View
               style={{
@@ -392,8 +398,8 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
               description="Change the model used for generating responses"
               left={props => <List.Icon {...props} icon="robot-outline" />}
               onPress={() => {
-                navigation.navigate('ModelPicker');
                 handleCloseBottomSheet();
+                showModelPicker();
               }}
             />
           </BottomSheetView>
