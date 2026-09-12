@@ -108,12 +108,10 @@ const ConversationRow = ({
 
 const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
   const insets = useSafeAreaInsets();
-  const { colors, dark } = useTheme();
+  const { colors } = useTheme();
   const drawerStatus = useDrawerStatus();
 
-  const logo = dark
-    ? require('@/assets/wima-logo-tr-light.png')
-    : require('@/assets/wima-logo-tr-dark.png');
+  const logo = require('@/assets/wima-logo-tr-light.png');
   const sections = useConversationSections();
   const activeId = useChatStore(state => state.activeConversationId);
 
@@ -187,11 +185,16 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
         title="Where Is My AI"
         titleStyle={{ fontWeight: 'bold', fontSize: 16 }}
         description="Open-source, customizable & private AI assistant"
+        descriptionStyle={{ fontSize: 12 }}
         left={props => (
           <List.Image
             {...props}
             source={logo}
-            style={{ borderRadius: 16, ...props.style }}
+            style={{
+              borderRadius: 16,
+              ...props.style,
+              backgroundColor: '#000000',
+            }}
           />
         )}
         right={props => (
