@@ -238,6 +238,57 @@ export interface SynthesisDiagnostics {
 }
 
 /**
+ * Which OuteTTS convention a formatted prompt was built with, and which one the
+ * grammar demands.
+ *
+ * llama.rn builds the prompt per version — 0.2 separates words with
+ * `<|text_sep|>` and wraps code runs in `<|code_start|>`/`<|code_end|>`, while
+ * 0.3 uses `<|space|>` for both — but hands back the same OUTETTS_V2_GRAMMAR
+ * for either. That grammar requires `<|space|>`. Applied to a 0.2 prompt it
+ * forces the sampler to emit `<|space|>` exactly where the model was trained to
+ * emit `<|code_end|>`, and everything after that point is off-distribution:
+ * incoherent codes, which the vocoder renders as noise.
+ *
+ * Rather than trust a version string, read the prompt we were actually given.
+ */
+interface PromptShape {
+  /** The convention the prompt itself uses. */
+  promptConvention: 'v0.2' | 'v0.3' | 'unknown';
+  /** Whether a grammar came back at all, and whether it wants `<|space|>`. */
+  grammarChars: number;
+  grammarWantsSpace: boolean;
+  promptChars: number;
+}
+
+function describePromptShape(prompt: string, grammar?: string): PromptShape {
+  const hasTextSep = prompt.includes('<|text_sep|>');
+  const hasCodeEnd = prompt.includes('<|code_end|>');
+  const hasSpace = prompt.includes('<|space|>');
+
+  return {
+    promptConvention:
+      hasTextSep || hasCodeEnd ? 'v0.2' : hasSpace ? 'v0.3' : 'unknown',
+    grammarChars: grammar?.length ?? 0,
+    grammarWantsSpace: grammar?.includes('"<|space|>"') ?? false,
+    promptChars: prompt.length,
+  };
+}
+
+/**
+ * Send the grammar only when it agrees with the prompt.
+ *
+ * The grammar's real job is forcing termination, so it is kept wherever it
+ * matches. Where it contradicts the prompt, generating unconstrained is far
+ * better than generating something the model cannot produce coherently.
+ */
+function shouldSendGrammar(shape: PromptShape): boolean {
+  if (!shape.grammarChars) {
+    return false;
+  }
+  return !(shape.grammarWantsSpace && shape.promptConvention === 'v0.2');
+}
+
+/**
  * Turn one piece of text into samples at {@link TTS_SAMPLE_RATE}.
  *
  * @throws {NoAudioError} when the model emitted no audio tokens. Deliberately
@@ -263,6 +314,9 @@ export async function synthesize(
   // them OuteTTS will happily speak something adjacent.
   const guideTokens = await ctx.getAudioCompletionGuideTokens(text);
 
+  const shape = describePromptShape(prompt, grammar);
+  const useGrammar = shouldSendGrammar(shape);
+
   if (signal?.aborted) {
     return undefined;
   }
@@ -273,20 +327,38 @@ export async function synthesize(
   signal?.addEventListener('abort', onAbort);
 
   try {
+    const budget = tokenBudgetFor(text);
     const result = await ctx.completion({
       // A raw prompt, not `messages` — this must skip chat templating entirely.
       prompt,
-      grammar,
+      ...(useGrammar ? { grammar } : null),
       guide_tokens: guideTokens,
-      n_predict: tokenBudgetFor(text),
+      n_predict: budget,
       temperature: 0.7,
       top_k: 40,
       top_p: 0.95,
-      penalty_repeat: 1.1,
+      // No repeat penalty. These are audio codes, not words: the same code
+      // recurring is normal, and penalising it bends the sequence away from
+      // what the vocoder expects. llama.cpp's own tts example omits it too.
     });
 
     if (signal?.aborted) {
       return undefined;
+    }
+
+    if (__DEV__) {
+      const audible = (result.audio_tokens ?? []).length;
+      console.warn('[voice] synthesis', {
+        ...shape,
+        grammarSent: useGrammar,
+        budget,
+        audioTokens: audible,
+        // Reaching the budget means the model never emitted <|audio_end|>,
+        // which is the signature of generation having gone off-distribution.
+        hitBudget: audible >= budget - 1,
+        contextFull: result.context_full,
+        text: (result.text ?? '').slice(0, 120),
+      });
     }
 
     let tokens = result.audio_tokens ?? [];
