@@ -1,6 +1,9 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { getTableConfig, SQLiteTable } from 'drizzle-orm/sqlite-core';
+
+import * as schema from '@/core/db/schema';
 
 const MIGRATIONS_DIR = join(
   __dirname,
@@ -68,6 +71,42 @@ describe('migrations', () => {
         'models',
       ]),
     );
+    db.close();
+  });
+
+  /**
+   * The migrations and `schema.ts` must not drift apart.
+   *
+   * Drizzle reads queries off the TypeScript schema, so a column declared
+   * there but never created by a migration is not a type error — it is a
+   * "no such column" thrown at the user on first launch, with the whole app
+   * behind it. Exactly that shipped once: `show_generation_stats` was added to
+   * the schema after the baseline had been generated, and nothing noticed
+   * until a device refused to open its database.
+   */
+  it('creates every column the schema declares', () => {
+    const db = migrate();
+
+    const missing: string[] = [];
+    for (const value of Object.values(schema)) {
+      if (!(value instanceof SQLiteTable)) {
+        continue;
+      }
+      const { name, columns } = getTableConfig(value);
+      const actual = new Set(
+        db
+          .prepare(`PRAGMA table_info(${name})`)
+          .all()
+          .map((row: unknown) => String((row as { name: string }).name)),
+      );
+      for (const column of columns) {
+        if (!actual.has(column.name)) {
+          missing.push(`${name}.${column.name}`);
+        }
+      }
+    }
+
+    expect(missing).toEqual([]);
     db.close();
   });
 

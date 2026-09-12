@@ -3,6 +3,7 @@ CREATE TABLE `app_state` (
 	`selected_model_id` text,
 	`theme_mode` text DEFAULT 'system' NOT NULL,
 	`theme_color` text DEFAULT 'monochrome' NOT NULL,
+	`show_generation_stats` integer DEFAULT false NOT NULL,
 	`onboarding_done` integer DEFAULT false NOT NULL,
 	FOREIGN KEY (`selected_model_id`) REFERENCES `models`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "app_state_single_row" CHECK("app_state"."id" = 1)
