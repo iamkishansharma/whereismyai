@@ -1,11 +1,11 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import {
-  ActivityIndicator,
   IconButton,
   List,
   ProgressBar,
   useTheme,
+  ActivityIndicator,
 } from 'react-native-paper';
 
 import useModelStore, { useDownloadTask } from '@/features/models/store';

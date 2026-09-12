@@ -1,11 +1,11 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { Theme } from '@react-navigation/native';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
 } from '@react-navigation/native';
-import { PaperProvider } from 'react-native-paper';
+import { PaperProvider, ActivityIndicator } from 'react-native-paper';
 
 import { useIsDarkMode } from '@/features/settings';
 import { RootNavigator, linking } from '@/navigation';

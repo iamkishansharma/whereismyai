@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
-import { Text, useTheme } from 'react-native-paper';
+import { Image, StyleSheet, View } from 'react-native';
+import { Text, useTheme, ActivityIndicator } from 'react-native-paper';
 
 import { useChatStore, useHydrated } from '@/features/chat';
 import useModelStore from '@/features/models/store';
