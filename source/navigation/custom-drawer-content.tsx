@@ -108,9 +108,12 @@ const ConversationRow = ({
 
 const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
   const insets = useSafeAreaInsets();
-  const { colors } = useTheme();
+  const { colors, dark } = useTheme();
   const drawerStatus = useDrawerStatus();
 
+  const logo = dark
+    ? require('@/assets/wima-logo-tr-light.png')
+    : require('@/assets/wima-logo-tr-dark.png');
   const sections = useConversationSections();
   const activeId = useChatStore(state => state.activeConversationId);
 
@@ -187,7 +190,7 @@ const ConversationDrawer = ({ navigation }: DrawerContentComponentProps) => {
         left={props => (
           <List.Image
             {...props}
-            source={require('@/assets/wima-logo.png')}
+            source={logo}
             style={{ borderRadius: 16, ...props.style }}
           />
         )}

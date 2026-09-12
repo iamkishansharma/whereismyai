@@ -69,6 +69,8 @@ export const appState = sqliteTable(
     selectedModelId: text('selected_model_id').references(() => models.id, {
       onDelete: 'set null',
     }),
+    // The app's default is DEFAULTS in app-state-repository, which writes this
+    // column explicitly. This clause only backstops rows inserted elsewhere.
     themeMode: text('theme_mode', { enum: ['system', 'light', 'dark'] })
       .notNull()
       .default('system'),

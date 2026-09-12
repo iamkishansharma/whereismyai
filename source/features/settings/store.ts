@@ -24,7 +24,7 @@ interface SettingsStore {
 const useSettingsStore = create<SettingsStore>()((set, get) => ({
   hydrated: false,
   showOnboarding: true,
-  themeMode: 'system',
+  themeMode: 'light',
   showGenerationStats: false,
 
   hydrate: async () => {

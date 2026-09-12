@@ -13,7 +13,7 @@ export interface AppState {
 
 const DEFAULTS: AppState = {
   selectedModelId: undefined,
-  themeMode: 'system',
+  themeMode: 'light',
   onboardingDone: false,
   showGenerationStats: false,
 };
@@ -26,7 +26,17 @@ export async function loadAppState(): Promise<AppState> {
   const [row] = await db.select().from(appState).where(eq(appState.id, 1));
 
   if (!row) {
-    await db.insert(appState).values({ id: 1 }).onConflictDoNothing();
+    // Written out rather than left to the column defaults, so DEFAULTS above is
+    // the only place a default lives and changing one does not need a migration.
+    await db
+      .insert(appState)
+      .values({
+        id: 1,
+        themeMode: DEFAULTS.themeMode,
+        onboardingDone: DEFAULTS.onboardingDone,
+        showGenerationStats: DEFAULTS.showGenerationStats,
+      })
+      .onConflictDoNothing();
     return DEFAULTS;
   }
 
