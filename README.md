@@ -194,7 +194,7 @@ Please open an issue and include:
 
 ## 📄 License
 
-whereismyai is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+whereismyai is licensed under the **Apache License 2.0**.
 
 See the [LICENSE](LICENSE) file for the full license text.
 

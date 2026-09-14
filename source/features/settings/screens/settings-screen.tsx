@@ -125,7 +125,7 @@ const Settings = ({ navigation }: SettingsScreenProps) => {
         />
         <List.Item
           title="Source code"
-          description="Open source under the GPLv3"
+          description="Open source under the Apache License 2.0"
           left={props => <List.Icon {...props} icon="github" />}
           right={props => <List.Icon {...props} icon="open-in-new" />}
           onPress={() => void Linking.openURL(SOURCE_URL)}

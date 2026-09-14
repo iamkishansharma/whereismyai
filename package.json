@@ -2,7 +2,7 @@
   "name": "whereismyai",
   "version": "1.0.0",
   "description": "Run open-source AI models locally on your phone. No cloud, no account.",
-  "license": "GPL-3.0",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/iamkishansharma/whereismyai.git"
