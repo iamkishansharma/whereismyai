@@ -77,9 +77,9 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.whereismyai"
+    namespace "com.kishansharma.whereismyai"
     defaultConfig {
-        applicationId "com.whereismyai"
+        applicationId "com.kishansharma.whereismyai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

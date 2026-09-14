@@ -1,4 +1,4 @@
-package com.whereismyai
+package com.kishansharma.whereismyai
 
 import android.app.Application
 import com.facebook.react.PackageList
