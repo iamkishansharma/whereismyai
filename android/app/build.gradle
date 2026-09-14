@@ -99,6 +99,17 @@ android {
     def uploadStoreFile = resolveSecret('WIMAI_UPLOAD_STORE_FILE')
     def hasUploadKey = uploadStoreFile != null && file(uploadStoreFile).exists()
 
+    // Say so. A release build silently signed with the debug key looks fine
+    // locally and is rejected on upload, or worse, ships publicly signed with a
+    // key everyone has. Contributors without the key still get a working build.
+    if (!hasUploadKey) {
+        def why = uploadStoreFile == null
+            ? "WIMAI_UPLOAD_STORE_FILE is not set"
+            : "no keystore at ${file(uploadStoreFile)}"
+        logger.warn("\nWARNING: release builds will be signed with the DEBUG key -- ${why}.")
+        logger.warn("They cannot be uploaded to Play. See \"Release builds\" in README.md.\n")
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
