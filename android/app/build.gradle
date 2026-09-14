@@ -55,9 +55,14 @@ react {
 }
 
 /**
- * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
+ * Runs R8 on release builds: shrinks, optimises and obfuscates the Java
+ * bytecode. Play measures the result (Android vitals "code optimization") and
+ * enforces a threshold once uncompressed DEX passes 10MB, which this app does.
+ *
+ * Turn it off to check whether R8 is behind a release-only bug -- its failures
+ * show up at runtime, never at build time.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -82,7 +87,7 @@ android {
         applicationId "com.heycode.whereismyai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
+        versionCode 2
         versionName "1.0.0"
     }
     // Release signing comes from Gradle properties or the environment, never
@@ -133,6 +138,7 @@ android {
         release {
             signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
