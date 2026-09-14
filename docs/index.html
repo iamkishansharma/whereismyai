@@ -80,7 +80,64 @@
         "sameAs": "https://github.com/iamkishansharma/whereismyai"
       }
     </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is it really free?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. No ads, no subscription, no account. Open source under the Apache License 2.0."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does my conversation ever leave the phone?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. There is no server. The only download is the model file from Hugging Face; after that it works in airplane mode."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which model should I start with?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Qwen2.5 0.5B Instruct, about 469 MB, runs on almost any phone."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How much storage does it need?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Models range from roughly 105 MB to about 2 GB each and can be deleted in the app."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can it look at photos?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes, with a vision model. Images are processed on the device."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Why is there no iPhone version yet?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Publishing to the App Store requires a paid Apple Developer account."
+            }
+          }
+        ]
+      }
+    </script>
   </head>
+
   <body>
     <header class="top">
       <div class="top-inner">
@@ -127,10 +184,10 @@
           <span class="pill"
             ><span class="dot"></span> v1.0 is live on Google Play</span
           >
-          <h1>AI that runs on <span class="grad">your phone</span>.</h1>
+          <h1>AI that runs on<br /><span class="grad">your phone</span>.</h1>
           <p class="lead">
             Download an open-source model once, then chat with it entirely on
-            your device. No account, no server, no tracking — and after the
+            your device. No account, no server, no tracking & after the
             download, no internet either.
           </p>
 
@@ -180,6 +237,7 @@
 
           <p class="stores-note">
             iOS needs a paid Apple Developer account —
+
             <a href="https://github.com/iamkishansharma/whereismyai/issues/6"
               >help sponsor the release →</a
             >
@@ -188,14 +246,20 @@
 
         <div class="shots">
           <img
-            class="shot back"
-            src="shot-light.png"
-            alt="Attaching a photo to ask a vision model about it"
+            class="shot s1"
+            src="shot-dark.png"
+            alt="A model answering in dark mode, entirely on-device"
           />
           <img
-            class="shot front"
-            src="shot-dark.png"
-            alt="A model answering a question entirely on-device"
+            class="shot s2"
+            src="shot-light.png"
+            alt="A chat in light mode, with a photo attached for a vision model"
+          />
+
+          <img
+            class="shot s3"
+            src="shot-config.png"
+            alt="Per-model generation settings: system prompt, sampling and context window"
           />
         </div>
       </section>
@@ -276,6 +340,60 @@
           <h3>Open source</h3>
           <p>Apache 2.0 — verify every claim on this page yourself.</p>
         </div>
+      </section>
+
+      <section class="faq" id="faq">
+        <h2 class="section-title">Questions</h2>
+        <details>
+          <summary>Is it really free?</summary>
+          <p>
+            Yes. No ads, no subscription, no account, no paid tier. It is open
+            source under the Apache License 2.0, so you can read every line of
+            it — or build it yourself.
+          </p>
+        </details>
+        <details>
+          <summary>Does my conversation ever leave the phone?</summary>
+          <p>
+            No. There is no server to send it to. The only thing the app
+            downloads is the model file itself, from Hugging Face. After that
+            you can switch on airplane mode and it keeps working.
+          </p>
+        </details>
+        <details>
+          <summary>Which model should I start with?</summary>
+          <p>
+            Qwen2.5 0.5B Instruct — about 469&nbsp;MB, and it runs on almost any
+            phone. Bigger models answer better but need more memory, so work
+            upwards from there.
+          </p>
+        </details>
+        <details>
+          <summary>How much storage does it need?</summary>
+          <p>
+            The app is small; the models are not. They range from roughly
+            105&nbsp;MB to about 2&nbsp;GB each. Keep as many as you like and
+            delete any of them from inside the app.
+          </p>
+        </details>
+        <details>
+          <summary>Can it look at photos?</summary>
+          <p>
+            Yes, with a vision model. Pick one from the library, then attach a
+            photo or take one. The image is processed on the device like
+            everything else.
+          </p>
+        </details>
+        <details>
+          <summary>Why is there no iPhone version yet?</summary>
+          <p>
+            The app is built for both, but publishing to the App&nbsp;Store
+            needs a paid Apple Developer account.
+            <a href="https://github.com/iamkishansharma/whereismyai/issues/6"
+              >Help sponsor it →</a
+            >
+          </p>
+        </details>
       </section>
     </main>
 

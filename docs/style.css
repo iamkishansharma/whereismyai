@@ -173,10 +173,10 @@ body::before {
 
 .hero {
   display: grid;
-  grid-template-columns: 1.02fr 0.98fr;
+  grid-template-columns: 1.06fr 0.94fr;
   align-items: center;
-  gap: 56px;
-  padding: 76px 0 40px;
+  gap: 60px;
+  padding: 88px 0 52px;
 }
 @media (max-width: 860px) {
   .hero {
@@ -212,9 +212,9 @@ body::before {
 
 h1 {
   margin: 0 0 18px;
-  font-size: clamp(36px, 5.6vw, 58px);
-  line-height: 1.04;
-  letter-spacing: -0.038em;
+  font-size: clamp(38px, 5.4vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.04em;
   font-weight: 700;
 }
 h1 .grad {
@@ -317,64 +317,68 @@ h1 .grad {
 
 /* ---------- device shots ---------- */
 
-/* The screenshots already carry the iPhone frame, so no CSS bezel here --
-   two of them, offset, to show light and dark at once. */
+/* Three real screenshots, fanned. They already carry the iPhone frame, so
+   there is no CSS bezel here -- only shadow, rotation and a glow behind. */
 .shots {
   position: relative;
   display: grid;
   place-items: center;
-  min-height: 560px;
+  min-height: 540px;
 }
 .shots::before {
   content: '';
   position: absolute;
-  width: 86%;
-  height: 72%;
+  width: 96%;
+  height: 70%;
   border-radius: 50%;
   background: linear-gradient(120deg, #6374ff, #00c4a6);
-  filter: blur(76px);
-  opacity: 0.45;
+  filter: blur(78px);
+  opacity: 0.42;
   z-index: 0;
 }
 .shot {
   position: absolute;
   display: block;
-  width: 252px;
-  max-width: 62vw;
+  width: 186px;
+  max-width: 42vw;
   height: auto;
-  border-radius: 30px;
-  will-change: transform;
+  border-radius: 26px;
 }
-.shot.back {
+.shot.s1 {
   z-index: 1;
-  transform: translate(-30%, -4%) rotate(-7deg);
-  filter: drop-shadow(0 26px 48px rgba(16, 16, 20, 0.22));
-  opacity: 0.96;
+  transform: translate(-64%, -5%) rotate(-9deg);
+  filter: drop-shadow(0 22px 40px rgba(16, 16, 20, 0.2));
 }
-.shot.front {
+.shot.s2 {
+  z-index: 3;
+  transform: translateY(3%) scale(1.1);
+  filter: drop-shadow(0 32px 58px rgba(16, 16, 20, 0.28));
+}
+.shot.s3 {
   z-index: 2;
-  transform: translate(16%, 5%) rotate(4deg);
-  filter: drop-shadow(0 34px 62px rgba(16, 16, 20, 0.3));
+  transform: translate(64%, -5%) rotate(9deg);
+  filter: drop-shadow(0 22px 40px rgba(16, 16, 20, 0.2));
 }
-:root[data-theme='dark'] .shot.back {
-  filter: drop-shadow(0 26px 48px rgba(0, 0, 0, 0.6));
+:root[data-theme='dark'] .shot.s1,
+:root[data-theme='dark'] .shot.s3 {
+  filter: drop-shadow(0 22px 40px rgba(0, 0, 0, 0.62));
 }
-:root[data-theme='dark'] .shot.front {
-  filter: drop-shadow(0 34px 62px rgba(0, 0, 0, 0.75));
+:root[data-theme='dark'] .shot.s2 {
+  filter: drop-shadow(0 32px 58px rgba(0, 0, 0, 0.78));
 }
 
 @media (max-width: 860px) {
   .shots {
-    min-height: 470px;
+    min-height: 430px;
   }
   .shot {
-    width: 218px;
+    width: 164px;
   }
-  .shot.back {
-    transform: translate(-27%, -4%) rotate(-7deg);
+  .shot.s1 {
+    transform: translate(-58%, -5%) rotate(-9deg);
   }
-  .shot.front {
-    transform: translate(15%, 5%) rotate(4deg);
+  .shot.s3 {
+    transform: translate(58%, -5%) rotate(9deg);
   }
 }
 
@@ -384,7 +388,7 @@ h1 .grad {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 13px;
-  padding: 26px 0 84px;
+  padding: 8px 0 22px;
 }
 .tile {
   padding: 18px 19px;
@@ -496,6 +500,74 @@ a:hover {
 .brand,
 .top nav a {
   text-decoration: none;
+}
+
+/* ---------- FAQ ---------- */
+
+.faq {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 44px 0 90px;
+}
+.faq details {
+  border: 1px solid var(--border);
+  border-radius: 15px;
+  background: var(--glass);
+  backdrop-filter: blur(16px) saturate(170%);
+  -webkit-backdrop-filter: blur(16px) saturate(170%);
+  margin-bottom: 10px;
+  overflow: hidden;
+}
+.faq summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 16px 48px 16px 19px;
+  position: relative;
+  font-size: 15.5px;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  color: var(--ink);
+}
+.faq summary::-webkit-details-marker {
+  display: none;
+}
+/* chevron, rotated when open */
+.faq summary::after {
+  content: '';
+  position: absolute;
+  right: 20px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -5px;
+  border-right: 2px solid var(--ink-mute);
+  border-bottom: 2px solid var(--ink-mute);
+  transform: rotate(45deg);
+  transition: transform 0.18s ease;
+}
+.faq details[open] summary::after {
+  transform: rotate(-135deg);
+  margin-top: -2px;
+}
+.faq summary:hover {
+  background: var(--glass-strong);
+}
+.faq details p {
+  margin: 0;
+  padding: 0 19px 18px;
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--ink-soft);
+}
+.faq .section-title {
+  text-align: center;
+  margin-bottom: 22px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq summary::after {
+    transition: none;
+  }
 }
 
 /* ---------- footer ---------- */
