@@ -280,7 +280,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kishansharma.whereismyai;
+				PRODUCT_BUNDLE_IDENTIFIER = com.heycode.whereismyai;
 				PRODUCT_NAME = whereismyai;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -312,7 +312,7 @@
 					"-ObjC",
 					"-lc++",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.kishansharma.whereismyai;
+				PRODUCT_BUNDLE_IDENTIFIER = com.heycode.whereismyai;
 				PRODUCT_NAME = whereismyai;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SWIFT_VERSION = 5.0;
