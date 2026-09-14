@@ -1,4 +1,4 @@
-package com.whereismyai
+package com.heycode.whereismyai
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate

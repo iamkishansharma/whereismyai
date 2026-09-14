@@ -99,8 +99,9 @@ source/
     settings/   theme and app preferences
   core/         infrastructure with no feature knowledge
     llama/      native context lifecycle, context-window fitting
-    db/         SQLite schema, drizzle migrations, chat repository
-    attachments/ image picking and on-disk storage
+    db/         SQLite schema, drizzle migrations, repositories
+    attachments/ image picking, on-disk storage, reconciliation
+    paths.ts    relative<->absolute path resolution
     fs.ts       shared filesystem helpers
   shared/       ui/ theme/ utils/ — reusable, feature-agnostic
   navigation/   navigators, linking, route types
@@ -109,6 +110,22 @@ source/
 
 Two rules keep this honest: `core/` and `shared/` never import from `features/`, and
 store contracts live beside their store rather than in `types/`.
+
+### Database
+
+Everything persists in one SQLite database.
+
+To change the schema, edit
+`source/core/db/schema.ts`, run `yarn db:generate`, read the emitted SQL, and commit it with
+its snapshot and journal — never edit a migration that already exists.
+
+`__tests__/migrations.test.ts` applies every migration to a fresh database and asserts the
+resulting schema and its cascades, so a broken migration fails in CI rather than on a user's
+device.
+
+Search is a `LIKE` scan rather than an FTS5 index, deliberately: FTS5 is a native compile flag
+that op-sqlite leaves off by default, and a search feature should never be able to stop the app
+from starting.
 
 ### Checks
 
@@ -121,6 +138,35 @@ yarn lint        # eslint, --max-warnings 0
 yarn format      # prettier --write .
 yarn test        # jest
 ```
+
+## 📦 Release builds
+
+Versions live in one place per platform and must agree: `app.json` (what the app displays and
+what `package.json` is checked against by `__tests__/version.test.ts`), iOS `MARKETING_VERSION`,
+and Android `versionName`.
+
+Android release builds are signed from Gradle properties or environment variables, never from
+anything committed. Generate your own upload key:
+
+```bash
+keytool -genkeypair -v -storetype PKCS12 \
+  -keystore upload.keystore -alias upload \
+  -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Then put these in `~/.gradle/gradle.properties` — outside the repository — or set them as
+environment variables in CI:
+
+```properties
+WIMAI_UPLOAD_STORE_FILE=/absolute/path/to/upload.keystore
+WIMAI_UPLOAD_STORE_PASSWORD=…
+WIMAI_UPLOAD_KEY_ALIAS=upload
+WIMAI_UPLOAD_KEY_PASSWORD=…
+```
+
+Without them `./gradlew assembleRelease` still works and falls back to debug signing, so you
+can build a release APK to measure performance. Only a build signed with a real upload key can
+go to Play.
 
 ## 🤝 Contributing
 
@@ -148,7 +194,7 @@ Please open an issue and include:
 
 ## 📄 License
 
-whereismyai is licensed under the **GNU General Public License v3.0 (GPLv3)**.
+whereismyai is licensed under the **Apache License 2.0**.
 
 See the [LICENSE](LICENSE) file for the full license text.
 

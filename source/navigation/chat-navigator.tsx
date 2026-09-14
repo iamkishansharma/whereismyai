@@ -11,7 +11,7 @@ import {
   GenerationSettings as GenerationSettingsScreen,
   ModelDetail,
   ModelLibrary,
-  ModelPicker,
+  openModelPicker,
 } from '@/features/models';
 import { SettingsScreen } from '@/features/settings';
 import { plainHeaderOptions, transparentHeaderOptions } from './header-options';
@@ -33,18 +33,6 @@ const DrawerToggle = () => {
     />
   );
 };
-const BackNav = () => {
-  const navigation = useNavigation();
-
-  return (
-    <IconButton
-      icon="close"
-      onPress={() => navigation.goBack()}
-      accessibilityLabel="Close"
-      style={styles.headerButton}
-    />
-  );
-};
 
 const ChatHeaderRight = () => {
   const navigation = useNavigation<ChatStackNavigation>();
@@ -53,7 +41,7 @@ const ChatHeaderRight = () => {
     <View style={styles.headerRight}>
       <IconButton
         icon="tune-variant"
-        onPress={() => navigation.navigate('ModelPicker')}
+        onPress={openModelPicker}
         accessibilityLabel="Choose model"
         style={styles.headerButton}
       />
@@ -107,18 +95,6 @@ const ChatNavigator = () => (
       component={GenerationSettingsScreen}
       options={{ title: 'Generation', ...transparentHeaderOptions }}
     />
-
-    <Stack.Group screenOptions={{ presentation: 'modal' }}>
-      <Stack.Screen
-        name="ModelPicker"
-        component={ModelPicker}
-        options={{
-          title: 'Choose model',
-          headerRight: () => <BackNav />,
-          ...transparentHeaderOptions,
-        }}
-      />
-    </Stack.Group>
   </Stack.Navigator>
 );
 

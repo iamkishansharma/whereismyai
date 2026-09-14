@@ -77,14 +77,39 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace "com.whereismyai"
+    namespace "com.heycode.whereismyai"
     defaultConfig {
-        applicationId "com.whereismyai"
+        applicationId "com.heycode.whereismyai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "1.0.0"
     }
+    // Release signing comes from Gradle properties or the environment, never
+    // from a committed file. This is a public repository: most people building
+    // it will not have the upload key, so `release` falls back to debug signing
+    // rather than failing — a contributor can still build a release APK to test
+    // performance. Only builds signed with the real key are uploadable.
+    //
+    // Set these in ~/.gradle/gradle.properties (outside the repo) or as env
+    // vars. See "Release builds" in README.md.
+    def resolveSecret = { String name ->
+        project.findProperty(name) ?: System.getenv(name)
+    }
+    def uploadStoreFile = resolveSecret('WIMAI_UPLOAD_STORE_FILE')
+    def hasUploadKey = uploadStoreFile != null && file(uploadStoreFile).exists()
+
+    // Say so. A release build silently signed with the debug key looks fine
+    // locally and is rejected on upload, or worse, ships publicly signed with a
+    // key everyone has. Contributors without the key still get a working build.
+    if (!hasUploadKey) {
+        def why = uploadStoreFile == null
+            ? "WIMAI_UPLOAD_STORE_FILE is not set"
+            : "no keystore at ${file(uploadStoreFile)}"
+        logger.warn("\nWARNING: release builds will be signed with the DEBUG key -- ${why}.")
+        logger.warn("They cannot be uploaded to Play. See \"Release builds\" in README.md.\n")
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -92,15 +117,21 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (hasUploadKey) {
+            release {
+                storeFile file(uploadStoreFile)
+                storePassword resolveSecret('WIMAI_UPLOAD_STORE_PASSWORD')
+                keyAlias resolveSecret('WIMAI_UPLOAD_KEY_ALIAS')
+                keyPassword resolveSecret('WIMAI_UPLOAD_KEY_PASSWORD')
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            signingConfig hasUploadKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }

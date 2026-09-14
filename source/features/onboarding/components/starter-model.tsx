@@ -109,7 +109,7 @@ const StarterModel = ({ onReady, onBrowseAll }: StarterModelProps) => {
         )} · downloads once, then works offline`}
       </Text>
       <Button compact onPress={onBrowseAll}>
-        Browse all models
+        Skip
       </Button>
     </View>
   );

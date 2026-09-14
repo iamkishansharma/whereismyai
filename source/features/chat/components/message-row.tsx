@@ -5,6 +5,8 @@ import { Avatar, IconButton, Text, useTheme } from 'react-native-paper';
 import ImageViewer from '@/shared/ui/image-viewer';
 import { useIsTrimPoint, useMessage } from '../store';
 import { useMessageModelName } from './use-message-model-name';
+import MessageStats from './message-stats';
+import { useShowGenerationStats } from '@/features/settings/store';
 import MarkdownMessage, { PlainMessage } from './markdown-message';
 import TypingIndicator from './typing-indicator';
 
@@ -32,9 +34,14 @@ const TrimNotice = () => {
 const MessageRow = ({ messageId }: { messageId: string }) => {
   const message = useMessage(messageId);
   const isTrimPoint = useIsTrimPoint(messageId);
-  const modelTitle = useMessageModelName(message?.modelId);
-  const { colors } = useTheme();
+  const modelTitle = useMessageModelName(message?.modelId, message?.modelName);
+  const { colors, dark } = useTheme();
+  const [showStats] = useShowGenerationStats();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+
+  const logo = dark
+    ? require('@/assets/wima-logo-tr-light.png')
+    : require('@/assets/wima-logo-tr-dark.png');
 
   // Deleting a conversation unmounts its rows a frame after the message is
   // gone from the store, so this has to come before any field is read.
@@ -100,7 +107,7 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
           paddingHorizontal: 16,
         }}
       >
-        <Avatar.Image size={28} source={require('@/assets/wima-logo.png')} />
+        <Avatar.Image size={28} source={logo} />
         <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
           {modelTitle}
         </Text>
@@ -155,7 +162,7 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
               onPress={() => {
                 Share.share({
                   message: message.content,
-                  title: 'Message from WIMA',
+                  title: 'Message from WhereIsMyAI',
                 });
               }}
             />
@@ -174,6 +181,8 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
             size={18}
             onPress={() => {}}
           />
+
+          {showStats && message.stats && <MessageStats stats={message.stats} />}
         </View>
       )}
     </View>
@@ -232,6 +241,7 @@ const styles = StyleSheet.create({
   },
   messageActionsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
     marginTop: 4,
   },

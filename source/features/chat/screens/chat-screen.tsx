@@ -21,6 +21,7 @@ import useChatStore, {
   useConversationMessageIds,
   useIsStreaming,
 } from '@/features/chat/store';
+import { ModelPickerSheet } from '@/features/models';
 import type { ChatScreenProps } from '@/navigation/types';
 import type { Attachment } from '@/types';
 
@@ -143,6 +144,10 @@ const Chat = ({ navigation, route }: ChatScreenProps) => {
           isStreaming={isStreaming}
         />
       </KeyboardStickyView>
+
+      {/* Mounted once here so the composer, the welcome card and the stack
+          header can all open the same sheet. */}
+      <ModelPickerSheet />
     </>
   );
 };

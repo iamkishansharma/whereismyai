@@ -3,7 +3,7 @@ import type { RootStackParamList } from './types';
 
 export const linking: LinkingOptions<RootStackParamList> = {
   prefixes: [
-    'wima://',
+    'whereismyai://',
     'https://whereismyai.app',
     'https://whereismyai.github.io',
     'https://whereismyai.kishansharma.com.np',
@@ -21,7 +21,6 @@ export const linking: LinkingOptions<RootStackParamList> = {
                 parse: { conversationId: String },
               },
               Settings: 'settings',
-              ModelPicker: 'model',
               ModelLibrary: 'models',
               ModelDetail: 'models/:modelId',
               GenerationSettings: 'generation',

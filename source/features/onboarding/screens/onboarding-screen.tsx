@@ -164,7 +164,7 @@ const Onboarding = ({ navigation }: OnboardingScreenProps) => {
           // new install can start chatting without first visiting the library.
           <StarterModel
             onReady={() => finish(false)}
-            onBrowseAll={() => finish(true)}
+            onBrowseAll={() => finish(false)}
           />
         ) : (
           <Button mode="contained" onPress={goNext} style={styles.cta}>

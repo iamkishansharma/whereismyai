@@ -1,4 +1,4 @@
-import { Alert, ScrollView, StyleSheet } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet } from 'react-native';
 import {
   Divider,
   List,
@@ -8,23 +8,27 @@ import {
   useTheme,
 } from 'react-native-paper';
 
-import useSettingsStore, { useThemeMode } from '../store';
+import { version as appVersion } from '../../../../app.json';
+import { useShowGenerationStats, useThemeMode } from '../store';
 import useChatStore from '@/features/chat/store';
+import { useInstalledOrder } from '@/features/models/store';
+import type { SettingsScreenProps } from '@/navigation/types';
 import type { ThemeMode } from '@/types';
 
-const THEME_MODES: { value: ThemeMode; label: string }[] = [
-  { value: 'system', label: 'System' },
-  { value: 'light', label: 'Light' },
-  { value: 'dark', label: 'Dark' },
+const SOURCE_URL = 'https://github.com/iamkishansharma/whereismyai';
+
+const THEME_MODES: { value: ThemeMode; label: string; icon: string }[] = [
+  { value: 'system', label: 'System', icon: 'cellphone' },
+  { value: 'light', label: 'Light', icon: 'white-balance-sunny' },
+  { value: 'dark', label: 'Dark', icon: 'weather-night' },
 ];
 
-const Settings = () => {
+const Settings = ({ navigation }: SettingsScreenProps) => {
   const { colors } = useTheme();
   const [themeMode, setThemeMode] = useThemeMode();
-  const themeColor = useSettingsStore(state => state.themeColor);
-  const setThemeColor = useSettingsStore(state => state.setThemeColor);
-  const setShowOnboarding = useSettingsStore(state => state.setShowOnboarding);
+  const [showStats, setShowStats] = useShowGenerationStats();
 
+  const installedCount = useInstalledOrder().length;
   const conversationOrder = useChatStore(state => state.conversationOrder);
   const deleteConversation = useChatStore(state => state.deleteConversation);
 
@@ -47,44 +51,47 @@ const Settings = () => {
       <List.Section>
         <List.Subheader>Appearance</List.Subheader>
         <SegmentedButtons
-          style={{ marginHorizontal: 16 }}
+          style={styles.themeButtons}
           value={themeMode}
           onValueChange={value => setThemeMode(value as ThemeMode)}
-          buttons={THEME_MODES.map(mode => ({
-            value: mode.value,
-            label: mode.label,
-            icon:
-              mode.value === 'system'
-                ? 'cellphone'
-                : mode.value === 'light'
-                ? 'white-balance-sunny'
-                : 'weather-night',
-          }))}
+          buttons={THEME_MODES}
         />
       </List.Section>
 
       <Divider />
 
       <List.Section>
-        <List.Subheader>Colour</List.Subheader>
-
+        <List.Subheader>Models</List.Subheader>
         <List.Item
-          title="Monochrome"
+          title="Models"
           description={
-            themeColor === 'monochrome'
-              ? 'Apply shades of grey to the app'
-              : 'Use the default Material color palette'
+            installedCount
+              ? `${installedCount} installed · download, inspect and delete`
+              : 'Download a model to start chatting'
           }
-          left={props => <List.Icon {...props} icon="palette" />}
-          right={props => (
-            <Switch
-              value={themeColor === 'monochrome'}
-              onValueChange={value =>
-                setThemeColor(value ? 'monochrome' : 'default')
-              }
-              {...props}
-            />
+          left={props => (
+            <List.Icon {...props} icon="folder-download-outline" />
           )}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          onPress={() => navigation.navigate('ModelLibrary')}
+        />
+        <List.Item
+          title="Generation settings"
+          description="System prompt, sampling and context window"
+          left={props => <List.Icon {...props} icon="tune" />}
+          right={props => <List.Icon {...props} icon="chevron-right" />}
+          // No modelId: the screen targets whichever model is selected, since
+          // these settings are saved per model.
+          onPress={() => navigation.navigate('GenerationSettings', {})}
+        />
+        <List.Item
+          title="Show response details"
+          description="Tokens, speed and time under each reply"
+          left={props => <List.Icon {...props} icon="speedometer" />}
+          right={() => (
+            <Switch value={showStats} onValueChange={setShowStats} />
+          )}
+          onPress={() => setShowStats(!showStats)}
         />
       </List.Section>
 
@@ -105,15 +112,32 @@ const Settings = () => {
           )}
           onPress={clearAll}
         />
+      </List.Section>
+
+      <Divider />
+
+      <List.Section>
+        <List.Subheader>About</List.Subheader>
         <List.Item
-          title="Replay onboarding"
-          left={props => <List.Icon {...props} icon="restart" />}
-          onPress={() => setShowOnboarding(true)}
+          title="Version"
+          description={appVersion}
+          left={props => <List.Icon {...props} icon="information-outline" />}
+        />
+        <List.Item
+          title="Source code"
+          description="Open source under the Apache License 2.0"
+          left={props => <List.Icon {...props} icon="github" />}
+          right={props => <List.Icon {...props} icon="open-in-new" />}
+          onPress={() => void Linking.openURL(SOURCE_URL)}
         />
       </List.Section>
 
-      <Text style={[styles.footer, { color: colors.onSurfaceVariant }]}>
-        &copy; whereismyai {new Date().getFullYear()}
+      <Text
+        variant="bodySmall"
+        style={[styles.footer, { color: colors.onSurfaceVariant }]}
+      >
+        Everything runs on this device. Nothing you type or attach is sent
+        anywhere.
       </Text>
     </ScrollView>
   );
@@ -123,9 +147,13 @@ const styles = StyleSheet.create({
   content: {
     paddingBottom: 32,
   },
+  themeButtons: {
+    marginHorizontal: 16,
+  },
   footer: {
     textAlign: 'center',
-    marginTop: 32,
+    marginTop: 24,
+    marginHorizontal: 32,
   },
 });
 

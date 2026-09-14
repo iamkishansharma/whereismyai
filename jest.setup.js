@@ -12,10 +12,6 @@ jest.mock('react-native-keyboard-controller', () =>
   require('react-native-keyboard-controller/jest'),
 );
 
-jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest'),
-);
-
 // Native modules with no JS fallback. Without these any test that mounts the
 // app fails on a missing base module rather than on anything it meant to check.
 jest.mock('@op-engineering/op-sqlite', () => ({
@@ -52,4 +48,14 @@ jest.mock('@dr.pogodin/react-native-fs', () => ({
 jest.mock('react-native-image-picker', () => ({
   launchCamera: jest.fn(),
   launchImageLibrary: jest.fn(),
+}));
+
+// Ships no mock of its own, and is a TurboModule.
+jest.mock('react-native-bootsplash', () => ({
+  __esModule: true,
+  default: {
+    hide: jest.fn(async () => {}),
+    isVisible: jest.fn(async () => false),
+    useHideAnimation: jest.fn(),
+  },
 }));

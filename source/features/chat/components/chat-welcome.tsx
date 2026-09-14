@@ -7,6 +7,7 @@ import GradientText from '@/shared/ui/gradient-text';
 
 import useModelStore from '@/features/models/store';
 import { useEffectiveModel } from '@/features/models/use-effective-model';
+import { openModelPicker } from '@/features/models/use-model-picker';
 import type { ChatStackNavigation } from '@/navigation/chat-navigator';
 import { formatBytes } from '@/shared/utils/format';
 
@@ -53,9 +54,15 @@ const ChatWelcome = () => {
         style={styles.cardWrap}
       >
         <TouchableRipple
-          onPress={() =>
-            navigation.navigate(selectedModel ? 'ModelPicker' : 'ModelLibrary')
-          }
+          onPress={() => {
+            // A model already chosen means the sheet is the quick way to swap;
+            // with none installed the library is the only useful destination.
+            if (selectedModel) {
+              openModelPicker();
+            } else {
+              navigation.navigate('ModelLibrary');
+            }
+          }}
           style={[
             styles.card,
             {

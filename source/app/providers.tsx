@@ -1,16 +1,16 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import type { Theme } from '@react-navigation/native';
 import {
   DarkTheme,
   DefaultTheme,
   NavigationContainer,
 } from '@react-navigation/native';
-import { PaperProvider } from 'react-native-paper';
+import { PaperProvider, ActivityIndicator } from 'react-native-paper';
 
-import { useIsDarkMode, useSettingsStore } from '@/features/settings';
+import { useIsDarkMode } from '@/features/settings';
 import { RootNavigator, linking } from '@/navigation';
 import DatabaseGate from './database-gate';
-import { getThemeBasedOnColor } from '@/shared/theme';
+import { WIMAITheme } from '@/shared/theme';
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 
 const LinkingFallback = () => (
@@ -21,10 +21,7 @@ const LinkingFallback = () => (
 
 function AppProvider() {
   const isDarkMode = useIsDarkMode();
-  const themeColor = useSettingsStore(state => state.themeColor);
-  const paperTheme = isDarkMode
-    ? getThemeBasedOnColor(themeColor)?.dark
-    : getThemeBasedOnColor(themeColor)?.light;
+  const paperTheme = isDarkMode ? WIMAITheme.dark : WIMAITheme.light;
 
   const navigationBase = isDarkMode ? DarkTheme : DefaultTheme;
   const theme: Theme = {

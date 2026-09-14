@@ -1,0 +1,4 @@
+<resources>
+    <!-- Matches the dark theme background in source/shared/theme/palette.ts. -->
+    <color name="bootsplash_background">#121211</color>
+</resources>

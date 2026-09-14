@@ -1,0 +1,199 @@
+/* Palette mirrors the app (source/shared/theme/palette.ts) so the site and the
+   app read as one product. Light is the app's default; dark follows the OS. */
+:root {
+  --bg: #fcfcfa;
+  --surface: #f6f6f4;
+  --ink: #1b1b1a;
+  --ink-soft: #4e4e4b;
+  --ink-mute: #7e7e7a;
+  --line: #cdcdc9;
+  --accent: #20201f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121211;
+    --surface: #1c1c1a;
+    --ink: #e6e6e1;
+    --ink-soft: #c6c6c0;
+    --ink-mute: #8f8f8a;
+    --line: #353532;
+    --accent: #e1e1dd;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.65 -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  -webkit-text-size-adjust: 100%;
+}
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px;
+  border-bottom: 1px solid var(--line);
+}
+.brand {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  color: var(--ink);
+}
+.top nav {
+  display: flex;
+  gap: 18px;
+}
+.top nav a {
+  color: var(--ink-soft);
+  text-decoration: none;
+  font-size: 15px;
+}
+.top nav a:hover {
+  color: var(--ink);
+}
+.top nav a[aria-current='page'] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+main {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 20px 64px;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  margin: 32px 0 8px;
+}
+h2 {
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+  margin: 40px 0 12px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+h2:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+
+p {
+  margin: 0 0 14px;
+  color: var(--ink-soft);
+}
+.meta {
+  color: var(--ink-mute);
+  font-size: 14px;
+  margin-bottom: 28px;
+}
+
+ul {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 7px;
+  color: var(--ink-soft);
+}
+li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.7em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-mute);
+}
+
+a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+a:hover {
+  color: var(--accent);
+}
+
+footer {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px 56px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-mute);
+  font-size: 14px;
+}
+footer p {
+  color: var(--ink-mute);
+  margin: 0 0 6px;
+  font-size: 14px;
+}
+
+/* Home page */
+.hero {
+  padding: 48px 0 8px;
+}
+.hero p.lead {
+  font-size: 19px;
+  color: var(--ink-soft);
+  max-width: 54ch;
+}
+.cards {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin: 28px 0;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+}
+.card h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+}
+.card p {
+  margin: 0;
+  font-size: 14px;
+}
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 24px 0 8px;
+}
+.btn {
+  display: inline-block;
+  padding: 10px 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  text-decoration: none;
+  color: var(--ink);
+  font-size: 15px;
+  background: var(--surface);
+}
+.btn:hover {
+  border-color: var(--ink-mute);
+}

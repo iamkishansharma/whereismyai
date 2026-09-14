@@ -4,6 +4,7 @@ export {
   type ChatComposerHandle,
 } from './chat-composer';
 export { default as ChatTitle } from './chat-title';
+export { default as ConversationSearch } from './conversation-search';
 export { default as ChatWelcome } from './chat-welcome';
 export { default as MarkdownMessage, PlainMessage } from './markdown-message';
 export { default as MessageRow } from './message-row';

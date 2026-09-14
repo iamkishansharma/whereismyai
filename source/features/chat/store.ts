@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import dayjs from 'dayjs';
 import { create } from 'zustand';
 import uuid from 'react-native-uuid';
 
@@ -9,10 +11,17 @@ import {
   runCompletion,
 } from '@/core/llama';
 import { answeringImages, buildPrompt, historyFor } from './prompt';
+import { groupByDay, type ConversationSection } from './conversation-sections';
 import * as repo from '@/core/db/chat-repository';
 import { deleteAttachments } from '@/core/attachments';
 import useModelStore, { settingsFor } from '@/features/models/store';
-import type { Attachment, Conversation, Message, MessageStatus } from '@/types';
+import type {
+  Attachment,
+  Conversation,
+  GenerationStats,
+  Message,
+  MessageStatus,
+} from '@/types';
 
 interface ChatStore {
   conversations: Record<string, Conversation>;
@@ -23,10 +32,13 @@ interface ChatStore {
    * from the current model and its settings, so deliberately not persisted.
    */
   trimmedFrom: Record<string, string>;
+  /** Conversations whose messages have been read in. */
+  loaded: Record<string, boolean>;
 
   activeConversationId?: string;
   hydrated: boolean;
   setActiveConversation: (conversationId?: string) => void;
+  loadConversation: (conversationId: string) => Promise<void>;
   setTrimmedFrom: (conversationId: string, messageId?: string) => void;
   hydrate: () => Promise<void>;
 
@@ -49,6 +61,7 @@ interface ChatStore {
     messageId: string,
     status: MessageStatus,
     error?: string,
+    stats?: GenerationStats,
   ) => void;
 }
 
@@ -181,7 +194,7 @@ async function generateReply(
           void repo.updateMessage(replyMessageId, { content });
         }
       },
-      ({ stopped, error, contextFull }) => {
+      ({ stopped, error, contextFull, stats }) => {
         activeStreams.delete(conversationId);
         const content = get().messages[replyMessageId]?.content ?? '';
 
@@ -200,11 +213,12 @@ async function generateReply(
           ? 'stopped'
           : 'sent';
 
-        get().setMessageStatus(replyMessageId, status, reason);
+        get().setMessageStatus(replyMessageId, status, reason, stats);
         void repo.updateMessage(replyMessageId, {
           content,
           status,
           error: reason,
+          stats,
         });
       },
     );
@@ -226,21 +240,69 @@ const useChatStore = create<ChatStore>()((set, get) => ({
   conversationOrder: [],
   messages: {},
   trimmedFrom: {},
+  loaded: {},
   activeConversationId: undefined,
   hydrated: false,
 
+  /**
+   * Conversation metadata only. Reading every message of every conversation
+   * here is what used to make a long history slow to start; the transcript is
+   * fetched when a conversation is actually opened.
+   */
   hydrate: async () => {
     await repo.resetStreamingMessages();
-    const snapshot = await repo.loadChatSnapshot();
-    set({ ...snapshot, hydrated: true });
+    const list = await repo.loadConversations();
+
+    set({
+      conversations: Object.fromEntries(
+        list.map(conversation => [conversation.id, conversation]),
+      ),
+      conversationOrder: list.map(conversation => conversation.id),
+      hydrated: true,
+    });
   },
 
-  setActiveConversation: conversationId =>
+  loadConversation: async conversationId => {
+    // A conversation created in this session already has its messages in
+    // memory, and re-reading mid-stream would clobber the live reply.
+    if (get().loaded[conversationId]) {
+      return;
+    }
+
+    const list = await repo.loadMessages(conversationId);
+
+    set(state => {
+      const conversation = state.conversations[conversationId];
+      if (!conversation) {
+        return state;
+      }
+      return {
+        loaded: { ...state.loaded, [conversationId]: true },
+        messages: {
+          ...state.messages,
+          ...Object.fromEntries(list.map(message => [message.id, message])),
+        },
+        conversations: {
+          ...state.conversations,
+          [conversationId]: {
+            ...conversation,
+            messageIds: list.map(message => message.id),
+          },
+        },
+      };
+    });
+  },
+
+  setActiveConversation: conversationId => {
     set(state =>
       state.activeConversationId === conversationId
         ? state
         : { activeConversationId: conversationId },
-    ),
+    );
+    if (conversationId) {
+      void get().loadConversation(conversationId);
+    }
+  },
 
   setTrimmedFrom: (conversationId, messageId) =>
     set(state => {
@@ -271,6 +333,7 @@ const useChatStore = create<ChatStore>()((set, get) => ({
     set(state => ({
       conversations: { ...state.conversations, [id]: conversation },
       conversationOrder: [id, ...state.conversationOrder],
+      loaded: { ...state.loaded, [id]: true },
     }));
 
     void repo.insertConversation(conversation);
@@ -308,11 +371,14 @@ const useChatStore = create<ChatStore>()((set, get) => ({
 
       const trimmedFrom = { ...state.trimmedFrom };
       delete trimmedFrom[conversationId];
+      const loaded = { ...state.loaded };
+      delete loaded[conversationId];
 
       return {
         conversations,
         messages,
         trimmedFrom,
+        loaded,
         conversationOrder: state.conversationOrder.filter(
           id => id !== conversationId,
         ),
@@ -385,9 +451,12 @@ const useChatStore = create<ChatStore>()((set, get) => ({
     get().stopStreaming(conversationId);
 
     const now = Date.now();
+    const models = useModelStore.getState();
     const modelId =
-      get().conversations[conversationId]?.modelId ??
-      useModelStore.getState().selectedModelId;
+      get().conversations[conversationId]?.modelId ?? models.selectedModelId;
+    // Copied now so the transcript can still name the model after it is
+    // uninstalled — a lookup would come back empty.
+    const modelName = modelId ? models.installed[modelId]?.name : undefined;
 
     const userMessage: Message = {
       id: newId(),
@@ -415,6 +484,7 @@ const useChatStore = create<ChatStore>()((set, get) => ({
       createdAt: now + 1,
       status: 'streaming',
       modelId,
+      modelName,
     };
 
     let nextTitle: string | undefined;
@@ -490,16 +560,23 @@ const useChatStore = create<ChatStore>()((set, get) => ({
       };
     }),
 
-  setMessageStatus: (messageId, status, error) =>
+  setMessageStatus: (messageId, status, error, stats) =>
     set(state => {
       const message = state.messages[messageId];
-      if (!message || (message.status === status && !error)) {
+      // Stats arrive with the terminal status, so a no-op on status alone
+      // would drop them.
+      if (!message || (message.status === status && !error && !stats)) {
         return state;
       }
       return {
         messages: {
           ...state.messages,
-          [messageId]: { ...message, status, error },
+          [messageId]: {
+            ...message,
+            status,
+            error,
+            stats: stats ?? message.stats,
+          },
         },
       };
     }),
@@ -511,6 +588,32 @@ export const useHydrated = () => useChatStore(state => state.hydrated);
 
 export const useConversationOrder = () =>
   useChatStore(state => state.conversationOrder);
+
+/**
+ * History grouped into day sections, newest first.
+ *
+ * The grouping is memoised on the start of the current day rather than on
+ * `Date.now()`, so it survives re-renders but still re-labels "Today" once the
+ * date rolls over.
+ */
+export const useConversationSections = (): ConversationSection[] => {
+  const conversations = useChatStore(state => state.conversations);
+  const order = useChatStore(state => state.conversationOrder);
+  const dayStart = dayjs().startOf('day').valueOf();
+
+  return useMemo(
+    () =>
+      groupByDay(
+        order
+          .map(id => conversations[id])
+          .filter((conversation): conversation is Conversation =>
+            Boolean(conversation),
+          ),
+        dayStart,
+      ),
+    [conversations, order, dayStart],
+  );
+};
 
 export const useIsActiveConversation = (conversationId: string) =>
   useChatStore(state => state.activeConversationId === conversationId);
