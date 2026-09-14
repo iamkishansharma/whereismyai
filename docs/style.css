@@ -218,7 +218,7 @@ h1 {
   font-weight: 700;
 }
 h1 .grad {
-  background: linear-gradient(115deg, #6374ff 0%, #00c4a6 55%, #ff8a4c 100%);
+  background: linear-gradient(115deg, #ff63fa8d 0%, #4321be 55%, #ff8b4cc6 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -253,7 +253,7 @@ h1 .grad {
   align-items: center;
   gap: 12px;
   padding: 11px 20px 11px 17px;
-  border-radius: 15px;
+  border-radius: 14px;
   text-decoration: none;
   border: 1px solid transparent;
   transition: transform 0.16s ease, box-shadow 0.16s ease,
