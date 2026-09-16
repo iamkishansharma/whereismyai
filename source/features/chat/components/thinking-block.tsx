@@ -7,8 +7,6 @@ import MarkdownMessage from './markdown-message';
 import Animated, {
   Easing,
   FadeIn,
-  FadeOut,
-  LinearTransition,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -26,12 +24,9 @@ const DURATION = 200;
 const EASING = Easing.out(Easing.cubic);
 
 /**
- * A model's narration, kept out of the way.
- *
- * Always collapsed until someone asks for it: opening on its own moves the
- * answer down the screen just as it arrives, and nobody asked to read the
- * monologue. While the model is still thinking the label shimmers instead, so
- * the pause reads as work in progress rather than a hang.
+ * A model's narration, kept out of the way. Always collapsed: opening on its
+ * own shoves the answer down the screen just as it arrives. The label shimmers
+ * while the model is still thinking, so the pause does not read as a hang.
  */
 const ThinkingBlock = ({
   reasoning,
@@ -60,7 +55,7 @@ const ThinkingBlock = ({
   }
 
   return (
-    <Animated.View layout={LinearTransition.duration(DURATION).easing(EASING)}>
+    <View>
       <Pressable
         onPress={() => setOpen(value => !value)}
         accessibilityRole="button"
@@ -77,7 +72,7 @@ const ThinkingBlock = ({
             variant="labelMedium"
             style={{ color: colors.onSurfaceVariant }}
           >
-            Reasoning
+            Thought process
           </Text>
         )}
         <Animated.View style={chevron}>
@@ -89,20 +84,19 @@ const ThinkingBlock = ({
         </Animated.View>
       </Pressable>
 
+      {/* No exit animation: it would hold the space while fading, which reads
+          as the transcript lagging behind the tap. */}
       {open && (
         <Animated.View
           entering={FadeIn.duration(DURATION)}
-          exiting={FadeOut.duration(DURATION / 2)}
           style={[styles.body, { borderLeftColor: colors.outlineVariant }]}
         >
-          {/* Models format their narration too — numbered steps, bold labels.
-              Rendering it raw showed the asterisks. */}
           <MarkdownMessage markdown={reasoning} streaming={streaming} muted />
         </Animated.View>
       )}
 
       <View style={styles.spacer} />
-    </Animated.View>
+    </View>
   );
 };
 

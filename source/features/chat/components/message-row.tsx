@@ -37,13 +37,13 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
   const message = useMessage(messageId);
   const isTrimPoint = useIsTrimPoint(messageId);
   const modelTitle = useMessageModelName(message?.modelId, message?.modelName);
-  const { colors, dark } = useTheme();
+  const { colors } = useTheme();
   const [showStats] = useShowGenerationStats();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const logo = dark
-    ? require('@/assets/wima-logo-tr-light.png')
-    : require('@/assets/wima-logo-tr-dark.png');
+  // Always the light mark on a dark tile, as in the drawer: the avatar is a
+  // fixed badge rather than themed surface, so it must not follow the theme.
+  const logo = require('@/assets/wima-logo-tr-light.png');
 
   // What is stored is exactly what the model produced, markers and all. The
   // answer is separated here rather than on the way in, so replies already in
@@ -119,7 +119,7 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
           paddingHorizontal: 16,
         }}
       >
-        <Avatar.Image size={28} source={logo} />
+        <Avatar.Image size={28} source={logo} style={styles.avatar} />
         <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
           {modelTitle}
         </Text>
@@ -162,45 +162,30 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
       </View>
       {!failed && streamingComplete && (
         <View style={styles.messageActionsRow}>
-          {/* The answer, never the model's narration — copying someone a
-              monologue they never asked to read is the same bug twice. */}
-          {answer && (
-            <IconButton
-              style={{ margin: 0 }}
-              icon="clipboard-text-outline"
-              size={18}
-              onPress={() => {
-                Clipboard.setString(answer);
-              }}
-            />
-          )}
-          {answer && (
-            <IconButton
-              style={{ margin: 0 }}
-              icon="share-outline"
-              size={18}
-              onPress={() => {
-                Share.share({
-                  message: answer,
-                  title: 'Message from WhereIsMyAI',
-                });
-              }}
-            />
-          )}
-          {/* TODO :: Handle thumbs up action */}
-          <IconButton
-            style={{ margin: 0, display: 'none' }}
-            icon="thumb-up-outline"
-            size={18}
-            onPress={() => {}}
-          />
-          {/* TODO :: Handle thumbs down action */}
-          <IconButton
-            style={{ margin: 0, display: 'none' }}
-            icon="thumb-down-outline"
-            size={18}
-            onPress={() => {}}
-          />
+          {/* The answer, never the narration. */}
+          {answer ? (
+            <>
+              <IconButton
+                style={styles.action}
+                icon="clipboard-text-outline"
+                size={18}
+                accessibilityLabel="Copy reply"
+                onPress={() => Clipboard.setString(answer)}
+              />
+              <IconButton
+                style={styles.action}
+                icon="share-outline"
+                size={18}
+                accessibilityLabel="Share reply"
+                onPress={() =>
+                  Share.share({
+                    message: answer,
+                    title: 'Message from WhereIsMyAI',
+                  })
+                }
+              />
+            </>
+          ) : null}
 
           {showStats && message.stats && <MessageStats stats={message.stats} />}
         </View>
@@ -259,11 +244,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: 'italic',
   },
+  avatar: {
+    backgroundColor: '#000',
+  },
   messageActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
     paddingHorizontal: 16,
     marginTop: 4,
+  },
+  action: {
+    margin: 0,
   },
 });
 

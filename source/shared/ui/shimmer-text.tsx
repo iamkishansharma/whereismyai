@@ -26,13 +26,11 @@ interface ShimmerTextProps {
 }
 
 /**
- * A short label with a highlight travelling across it — for work that is
- * happening right now, where a static label reads as stalled.
+ * A short label with a highlight travelling across it, for work happening now.
  *
- * The text is rendered twice: once as real Text, which is what lays out and
- * what a screen reader announces, and once as SVG on top of it, which carries
- * the moving gradient. Measuring the first is what lets the second be exactly
- * as wide as the word, so it does not push whatever sits beside it.
+ * Rendered twice: real Text owns the layout and the screen reader, SVG on top
+ * carries the moving gradient. Measuring the first sizes the second, so the
+ * highlight is exactly as wide as the word and shoves nothing aside.
  */
 const ShimmerText = ({
   children,
@@ -66,12 +64,8 @@ const ShimmerText = ({
       <Text
         variant="labelMedium"
         onLayout={event => setSize(event.nativeEvent.layout)}
-        style={{
-          color: colors.onSurfaceVariant,
-          // Kept in the tree once measured: it owns the layout, the SVG only
-          // paints over it.
-          opacity: measured ? 0 : 1,
-        }}
+        // Stays mounted once measured: it owns the layout, the SVG just paints.
+        style={{ color: colors.onSurfaceVariant, opacity: measured ? 0 : 1 }}
       >
         {children}
       </Text>

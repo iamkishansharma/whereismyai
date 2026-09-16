@@ -1,4 +1,5 @@
 import {
+  useEffect,
   forwardRef,
   useCallback,
   useRef,
@@ -83,13 +84,31 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
     // With nothing installed the library is the useful destination; otherwise
     // the picker sheet. Same rule the welcome card uses.
     const installedCount = useInstalledOrder().length;
+    const inputRef = useRef<ComponentRef<typeof TextInput>>(null);
+    // Set only when the picker was opened from here, so choosing a model
+    // elsewhere does not yank the keyboard up.
+    const pickingFromComposer = useRef(false);
+
     const showModelPicker = useCallback(() => {
+      // The sheet would otherwise open behind the keyboard.
+      Keyboard.dismiss();
+      pickingFromComposer.current = true;
       if (installedCount) {
         openModelPicker();
       } else {
         navigation.navigate('ModelLibrary');
       }
     }, [installedCount, navigation]);
+
+    // Picking a model is a step on the way to typing, so hand the keyboard back.
+    const selectedModelId = selectedModel?.id;
+    useEffect(() => {
+      if (!pickingFromComposer.current || !selectedModelId) {
+        return;
+      }
+      pickingFromComposer.current = false;
+      inputRef.current?.focus();
+    }, [selectedModelId]);
 
     const hasModel = selectedModel !== undefined;
     const canSend = (text.trim().length > 0 || files.length > 0) && hasModel;
@@ -203,6 +222,7 @@ const ChatComposer = forwardRef<ChatComposerHandle, ChatComposerProps>(
 
             <AttachmentStrip files={files} onRemove={removeFileAt} />
             <TextInput
+              ref={inputRef}
               value={text}
               onChangeText={setText}
               placeholder="Type to chat..."
