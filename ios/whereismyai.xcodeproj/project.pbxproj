@@ -13,7 +13,7 @@
 		2763B4E39E084784BF849FC0 /* Colors.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 0A491018506643629D43A062 /* Colors.xcassets */; };
 		436BE7393B7E49C2A02A349E /* BootSplash.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 26D917827E944D67BCA76099 /* BootSplash.storyboard */; };
 		761780ED2CA45674006654EE /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 761780EC2CA45674006654EE /* AppDelegate.swift */; };
-		7E000D3BC6C06E4A78489340 /* whereismyai/SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B428FA400CD23CAF2E1E68B9 /* whereismyai/SceneDelegate.swift */; };
+		7E000D3BC6C06E4A78489340 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B428FA400CD23CAF2E1E68B9 /* SceneDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,7 +27,7 @@
 		5709B34CF0A7D63546082F79 /* Pods-whereismyai.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-whereismyai.release.xcconfig"; path = "Target Support Files/Pods-whereismyai/Pods-whereismyai.release.xcconfig"; sourceTree = "<group>"; };
 		5DCACB8F33CDC322A6C60F78 /* libPods-whereismyai.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-whereismyai.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		761780EC2CA45674006654EE /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = whereismyai/AppDelegate.swift; sourceTree = "<group>"; };
-		B428FA400CD23CAF2E1E68B9 /* whereismyai/SceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = whereismyai/SceneDelegate.swift; sourceTree = "<group>"; };
+		B428FA400CD23CAF2E1E68B9 /* SceneDelegate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = whereismyai/SceneDelegate.swift; sourceTree = "<group>"; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
@@ -52,7 +52,7 @@
 				13B07FB81A68108700A75B9A /* PrivacyInfo.xcprivacy */,
 				26D917827E944D67BCA76099 /* BootSplash.storyboard */,
 				0A491018506643629D43A062 /* Colors.xcassets */,
-				B428FA400CD23CAF2E1E68B9 /* whereismyai/SceneDelegate.swift */,
+				B428FA400CD23CAF2E1E68B9 /* SceneDelegate.swift */,
 			);
 			name = whereismyai;
 			sourceTree = "<group>";
@@ -198,13 +198,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-whereismyai/Pods-whereismyai-frameworks-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Embed Pods Frameworks";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-whereismyai/Pods-whereismyai-frameworks-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -241,13 +237,9 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-whereismyai/Pods-whereismyai-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
-			inputPaths = (
-			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-whereismyai/Pods-whereismyai-resources-${CONFIGURATION}-output-files.xcfilelist",
-			);
-			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -262,7 +254,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				761780ED2CA45674006654EE /* AppDelegate.swift in Sources */,
-				7E000D3BC6C06E4A78489340 /* whereismyai/SceneDelegate.swift in Sources */,
+				7E000D3BC6C06E4A78489340 /* SceneDelegate.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

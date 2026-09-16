@@ -32,6 +32,17 @@ interface Marker {
   anywhere?: boolean;
 }
 
+/**
+ * A control token, tolerating a half-learned one.
+ *
+ * A fine-tune was observed emitting `<|channel>` to open its monologue and
+ * `<channel|>` to close it — the pipe on opposite sides within a single reply.
+ * So the pipe may sit either side, but at least one must be there: a bare
+ * `<channel>` is plausible prose, and these markers are trusted anywhere in a
+ * reply rather than only at the start.
+ */
+const token = (names: string) => `<(?:\\|(?:${names})\\|?|(?:${names})\\|)>`;
+
 // Labels a model puts straight after a channel marker. Optional: some emit
 // `<|channel|>thought`, others just open a channel and start writing.
 const THINKING_LABEL =
@@ -41,17 +52,21 @@ const THINKING_LABEL =
  * Matching the bare word would swallow the first word of any reply that
  * happens to open with "Answer" or "Final" — which it did, until it didn't.
  */
-const ANSWER_LABEL =
-  /^[ \t]*(?:final|assistant|response|answer)?[ \t]*<\|message\|>/i;
+const ANSWER_LABEL = new RegExp(
+  `^[ \\t]*(?:final|assistant|response|answer)?[ \\t]*${token('message')}`,
+  'i',
+);
 
 const MARKERS: Marker[] = [
   // gpt-oss / harmony and the fine-tunes that borrow its shape.
   {
     open: new RegExp(
-      `<\\|channel\\|>[ \\t]*${THINKING_LABEL}[ \\t]*(?:<\\|message\\|>)?`,
+      `${token('channel')}[ \\t]*${THINKING_LABEL}[ \\t]*(?:${token(
+        'message',
+      )})?`,
       'i',
     ),
-    close: /<\|(?:end|return|start|channel)\|>/i,
+    close: new RegExp(token('end|return|start|channel'), 'i'),
     anywhere: true,
   },
   { open: /<think>/i, close: /<\/think>/i },

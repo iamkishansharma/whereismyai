@@ -133,4 +133,44 @@ describe('splitReasoning', () => {
       expect(content).toBe('Answer.');
     });
   });
+
+  /**
+   * Captured verbatim from a device database, not retyped from a screenshot.
+   * This model half-learned its control token and emits the pipe on opposite
+   * sides of the two markers -- `<|channel>` to open, `<channel|>` to close.
+   * An earlier version of this file "tested" a hand-transcription that
+   * normalised both to `<|channel|>`, so every case passed against text no
+   * model has ever produced.
+   */
+  describe('real capture: himalaya gemma 4 e2b it', () => {
+    const CAPTURED =
+      '<|channel>thought\nThinking Process:\n\n' +
+      '1.  **Analyze the Request:** The user wants me to think about Kathmandu ' +
+      'and explain it in a tabular form in Nepali (nepali).\n' +
+      '2.  **Identify Constraints & Persona:** I am WIMAI (Where Is My AI), a ' +
+      "helpful assistant running locally on the user's device.\n" +
+      '8.  **Final Output Generation.** (Proceeding to generate the response in ' +
+      'Nepali tabular format.)' +
+      '<channel|>काठमाडौंको बारेमा तालिका रूपमा यहाँ जानकारी दिइएको छ:\n\n' +
+      '| विषय | विवरण |\n| :--- | :--- |';
+
+    it('splits it', () => {
+      const { reasoning, content } = splitReasoning(CAPTURED);
+      expect(reasoning).toContain('Analyze the Request');
+      expect(content).toContain('काठमाडौंको बारेमा');
+    });
+
+    it('leaves no marker on either side', () => {
+      const { reasoning, content } = splitReasoning(CAPTURED);
+      for (const text of [reasoning, content]) {
+        expect(text).not.toContain('<|channel');
+        expect(text).not.toContain('<channel');
+      }
+    });
+
+    it('keeps the answer table intact', () => {
+      const { content } = splitReasoning(CAPTURED);
+      expect(content).toContain('| विषय | विवरण |');
+    });
+  });
 });
