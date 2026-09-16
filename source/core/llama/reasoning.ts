@@ -24,15 +24,35 @@ interface Marker {
    * family switches channel instead, so the "close" is the next marker.
    */
   close: RegExp;
+  /**
+   * Control tokens like `<|channel|>` cannot appear in ordinary prose, so they
+   * are trusted wherever they turn up. An XML-ish `<think>` can appear in a
+   * real answer, so it is only believed at the very start of a reply.
+   */
+  anywhere?: boolean;
 }
 
-// Ordered most-specific first: `<|channel|>` variants have to be tried before
-// anything that would match a bare tag inside them.
+// Labels a model puts straight after a channel marker. Optional: some emit
+// `<|channel|>thought`, others just open a channel and start writing.
+const THINKING_LABEL =
+  /(?:analysis|thought(?:s)?|thinking|reasoning|scratchpad)?/.source;
+/**
+ * A channel label only counts as a label when a control token follows it.
+ * Matching the bare word would swallow the first word of any reply that
+ * happens to open with "Answer" or "Final" — which it did, until it didn't.
+ */
+const ANSWER_LABEL =
+  /^[ \t]*(?:final|assistant|response|answer)?[ \t]*<\|message\|>/i;
+
 const MARKERS: Marker[] = [
-  // gpt-oss / harmony: <|channel|>analysis<|message|> … <|end|> or <|start|>
+  // gpt-oss / harmony and the fine-tunes that borrow its shape.
   {
-    open: /<\|channel\|>\s*(?:analysis|thought|thinking|reasoning)\b[^]*?(?:<\|message\|>)?/i,
+    open: new RegExp(
+      `<\\|channel\\|>[ \\t]*${THINKING_LABEL}[ \\t]*(?:<\\|message\\|>)?`,
+      'i',
+    ),
     close: /<\|(?:end|return|start|channel)\|>/i,
+    anywhere: true,
   },
   { open: /<think>/i, close: /<\/think>/i },
   { open: /<thinking>/i, close: /<\/thinking>/i },
@@ -40,10 +60,10 @@ const MARKERS: Marker[] = [
 ];
 
 /**
- * Only treat a block as reasoning when it opens at the very start of the
- * reply. A model that mentions `<think>` halfway through an answer is talking
- * about tags, not using them, and swallowing that text would be far worse
- * than leaving a marker on screen.
+ * How far into a reply an ambiguous opening tag is still believed. A model
+ * that mentions `<think>` halfway through an answer is talking about tags,
+ * not using them, and swallowing that text would be far worse than leaving a
+ * marker on screen.
  */
 const LEADING_SLACK = 40;
 
@@ -54,7 +74,10 @@ export function splitReasoning(raw: string): SplitReply {
 
   for (const marker of MARKERS) {
     const opened = marker.open.exec(raw);
-    if (!opened || opened.index > LEADING_SLACK) {
+    if (!opened) {
+      continue;
+    }
+    if (!marker.anywhere && opened.index > LEADING_SLACK) {
       continue;
     }
 
@@ -70,7 +93,11 @@ export function splitReasoning(raw: string): SplitReply {
     }
 
     const before = raw.slice(0, opened.index);
-    const after = rest.slice(closed.index + closed[0].length);
+    // Drop the answer channel's own label, but only when it is punctuated as
+    // one — see ANSWER_LABEL.
+    const after = rest
+      .slice(closed.index + closed[0].length)
+      .replace(ANSWER_LABEL, '');
 
     return {
       reasoning: rest.slice(0, closed.index).trim(),

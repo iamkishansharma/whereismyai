@@ -86,4 +86,51 @@ describe('splitReasoning', () => {
       expect(splitReasoning('')).toEqual({ reasoning: '', content: '' });
     });
   });
+
+  // Variants found by probing real-world shapes; each one used to fall through
+  // and leave the markers on screen.
+  describe('channel markers are trusted wherever they appear', () => {
+    it('copes with no space after the label', () => {
+      const { reasoning, content } = splitReasoning(
+        '<|channel|>thoughtPlanning the reply<|channel|>Answer.',
+      );
+      expect(reasoning).toBe('Planning the reply');
+      expect(content).toBe('Answer.');
+    });
+
+    it('copes with no label at all', () => {
+      const { reasoning, content } = splitReasoning(
+        '<|channel|>Some planning text<|channel|>Answer.',
+      );
+      expect(reasoning).toBe('Some planning text');
+      expect(content).toBe('Answer.');
+    });
+
+    it('copes with a preamble before the marker', () => {
+      const { content } = splitReasoning(
+        'Okay, let me think about this carefully before writing anything.' +
+          '<|channel|>thought plan<|channel|>Answer.',
+      );
+      expect(content).not.toContain('<|channel|>');
+      expect(content).toContain('Answer.');
+    });
+
+    // This one bit for real: the answer-channel label was matching the bare
+    // word, so a reply opening with "Answer" came back as just ".".
+    it.each(['Answer', 'Final', 'Response', 'Assistant'])(
+      'keeps a reply that opens with the word %s',
+      word => {
+        const { content } = splitReasoning(
+          `<|channel|>thought plan<|channel|>${word} is 42.`,
+        );
+        expect(content).toBe(`${word} is 42.`);
+      },
+    );
+    it('strips the answer label after the closing marker', () => {
+      const { content } = splitReasoning(
+        '<|channel|>analysis<|message|>plan<|end|>final<|message|>Answer.',
+      );
+      expect(content).toBe('Answer.');
+    });
+  });
 });

@@ -125,7 +125,11 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
         </Text>
       </View>
       <View style={styles.assistantRow}>
-        <ThinkingBlock reasoning={reasoning} streaming={isStreaming} />
+        <ThinkingBlock
+          reasoning={reasoning}
+          streaming={isStreaming}
+          answerStarted={Boolean(answer)}
+        />
 
         {answer ? (
           <MarkdownMessage markdown={answer} streaming={isStreaming} />
