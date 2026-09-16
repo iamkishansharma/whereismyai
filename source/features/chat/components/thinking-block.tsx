@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text, useTheme } from 'react-native-paper';
 
+import ShimmerText from '@/shared/ui/shimmer-text';
 import MarkdownMessage from './markdown-message';
 import Animated, {
   Easing,
@@ -27,10 +28,10 @@ const EASING = Easing.out(Easing.cubic);
 /**
  * A model's narration, kept out of the way.
  *
- * It opens by itself while the model is still thinking — on a slow phone that
- * pause is otherwise dead air that reads as a hang — and folds away once the
- * answer starts, because by then it is a footnote. Touching it at any point
- * takes that decision away from us for the rest of the message.
+ * Always collapsed until someone asks for it: opening on its own moves the
+ * answer down the screen just as it arrives, and nobody asked to read the
+ * monologue. While the model is still thinking the label shimmers instead, so
+ * the pause reads as work in progress rather than a hang.
  */
 const ThinkingBlock = ({
   reasoning,
@@ -38,10 +39,9 @@ const ThinkingBlock = ({
   answerStarted,
 }: ThinkingBlockProps) => {
   const { colors } = useTheme();
-  const [choice, setChoice] = useState<boolean>();
+  const [open, setOpen] = useState(false);
 
   const thinkingNow = Boolean(streaming && !answerStarted);
-  const open = choice ?? thinkingNow;
 
   const spin = useSharedValue(open ? 1 : 0);
   useEffect(() => {
@@ -62,7 +62,7 @@ const ThinkingBlock = ({
   return (
     <Animated.View layout={LinearTransition.duration(DURATION).easing(EASING)}>
       <Pressable
-        onPress={() => setChoice(!open)}
+        onPress={() => setOpen(value => !value)}
         accessibilityRole="button"
         accessibilityState={{ expanded: open }}
         accessibilityLabel={open ? 'Hide reasoning' : 'Show reasoning'}
@@ -70,9 +70,16 @@ const ThinkingBlock = ({
         hitSlop={8}
       >
         <Icon source="brain" size={14} color={colors.onSurfaceVariant} />
-        <Text variant="labelMedium" style={{ color: colors.onSurfaceVariant }}>
-          {thinkingNow ? 'Thinking…' : 'Reasoning'}
-        </Text>
+        {thinkingNow ? (
+          <ShimmerText>Thinking…</ShimmerText>
+        ) : (
+          <Text
+            variant="labelMedium"
+            style={{ color: colors.onSurfaceVariant }}
+          >
+            Reasoning
+          </Text>
+        )}
         <Animated.View style={chevron}>
           <Icon
             source="chevron-down"
