@@ -8,33 +8,38 @@ import { StreamdownText } from 'react-native-streamdown';
 interface MarkdownMessageProps {
   markdown: string;
   streaming?: boolean;
+  /** Secondary text — a model's narration, not its answer. */
+  muted?: boolean;
   containerStyle?: EnrichedMarkdownTextProps['containerStyle'];
 }
 
 const MarkdownMessage = ({
   markdown,
   streaming,
+  muted,
   containerStyle,
 }: MarkdownMessageProps) => {
   const { colors, fonts } = useTheme();
+  const ink = muted ? colors.onSurfaceVariant : colors.onSurface;
+  const body = muted ? fonts.bodySmall : fonts.bodyLarge;
 
   const markdownStyle = useMemo<MarkdownStyle>(
     () => ({
       paragraph: {
-        color: colors.onSurface,
-        fontSize: fonts.bodyLarge.fontSize,
-        lineHeight: fonts.bodyLarge.lineHeight,
-        marginBottom: 12,
+        color: ink,
+        fontSize: body.fontSize,
+        lineHeight: body.lineHeight,
+        marginBottom: muted ? 8 : 12,
       },
-      h1: { color: colors.onSurface, marginTop: 16, marginBottom: 8 },
-      h2: { color: colors.onSurface, marginTop: 16, marginBottom: 8 },
-      h3: { color: colors.onSurface, marginTop: 12, marginBottom: 6 },
+      h1: { color: ink, marginTop: 16, marginBottom: 8 },
+      h2: { color: ink, marginTop: 16, marginBottom: 8 },
+      h3: { color: ink, marginTop: 12, marginBottom: 6 },
       list: {
-        color: colors.onSurface,
+        color: ink,
         bulletColor: colors.onSurfaceVariant,
         markerColor: colors.onSurfaceVariant,
         itemSpacing: 4,
-        marginBottom: 12,
+        marginBottom: muted ? 8 : 12,
       },
       link: { color: colors.primary, underline: false },
       code: {
@@ -56,7 +61,7 @@ const MarkdownMessage = ({
         gapWidth: 12,
       },
       table: {
-        color: colors.onSurface,
+        color: ink,
         borderColor: colors.outlineVariant,
         borderWidth: StyleSheet.hairlineWidth,
         borderRadius: 8,
@@ -67,7 +72,7 @@ const MarkdownMessage = ({
       },
       thematicBreak: { color: colors.outlineVariant, height: 1 },
     }),
-    [colors, fonts],
+    [colors, ink, body, muted],
   );
 
   if (!markdown) {

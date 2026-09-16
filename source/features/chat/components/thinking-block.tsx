@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { Icon, Text, useTheme } from 'react-native-paper';
+
+import MarkdownMessage from './markdown-message';
 import Animated, {
   Easing,
   FadeIn,
@@ -69,7 +71,7 @@ const ThinkingBlock = ({
       >
         <Icon source="brain" size={14} color={colors.onSurfaceVariant} />
         <Text variant="labelMedium" style={{ color: colors.onSurfaceVariant }}>
-          {thinkingNow ? 'Thinking…' : 'Thought process'}
+          {thinkingNow ? 'Thinking…' : 'Reasoning'}
         </Text>
         <Animated.View style={chevron}>
           <Icon
@@ -86,13 +88,9 @@ const ThinkingBlock = ({
           exiting={FadeOut.duration(DURATION / 2)}
           style={[styles.body, { borderLeftColor: colors.outlineVariant }]}
         >
-          <Text
-            variant="bodySmall"
-            style={{ color: colors.onSurfaceVariant }}
-            selectable
-          >
-            {reasoning}
-          </Text>
+          {/* Models format their narration too — numbered steps, bold labels.
+              Rendering it raw showed the asterisks. */}
+          <MarkdownMessage markdown={reasoning} streaming={streaming} muted />
         </Animated.View>
       )}
 
