@@ -87,8 +87,8 @@ android {
         applicationId "com.heycode.whereismyai"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.0.0"
+        versionCode 3
+        versionName "1.0.1"
     }
     // Release signing comes from Gradle properties or the environment, never
     // from a committed file. This is a public repository: most people building
