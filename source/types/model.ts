@@ -65,6 +65,11 @@ export interface GenerationSettings {
   nPredict: number;
   nCtx: number;
   nGpuLayers: number;
+  /**
+   * Let a reasoning model narrate before answering. Only has any effect when
+   * the model's template declares thinking and jinja formatting is in use.
+   */
+  enableThinking: boolean;
 }
 
 export type EngineState = 'idle' | 'loading' | 'ready' | 'error';

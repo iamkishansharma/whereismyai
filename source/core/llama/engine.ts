@@ -163,6 +163,22 @@ export interface CompletionOutcome {
   stats?: GenerationStats;
 }
 
+/**
+ * jinja formatting is what makes llama.cpp recognise a template's thinking
+ * tags and honour `enable_thinking` — but not every template survives it, so
+ * only ask when the context says the model supports it.
+ *
+ * Completion and measurement must be given the same options. If they disagree
+ * the prompt that gets sent is not the one that was counted, and conversations
+ * start being trimmed at the wrong point for no visible reason.
+ */
+function chatOptions(ctx: LlamaContext, settings: GenerationSettings) {
+  if (!ctx.isJinjaSupported()) {
+    return {};
+  }
+  return { jinja: true, enable_thinking: settings.enableThinking };
+}
+
 export function runCompletion(
   ctx: LlamaContext,
   messages: RNLlamaOAICompatibleMessage[],
@@ -183,6 +199,7 @@ export function runCompletion(
     .completion(
       {
         messages,
+        ...chatOptions(ctx, settings),
         n_predict: settings.nPredict,
         temperature: settings.temperature,
         top_p: settings.topP,
@@ -229,6 +246,7 @@ export function runCompletion(
 export async function measurePrompt(
   ctx: LlamaContext,
   messages: RNLlamaOAICompatibleMessage[],
+  settings: GenerationSettings,
 ): Promise<number> {
   const images = messages.reduce((total, message) => {
     if (!Array.isArray(message.content)) {
@@ -242,7 +260,12 @@ export async function measurePrompt(
     );
   }, 0);
 
-  const formatted = await ctx.getFormattedChat(messages);
+  // Same options as the completion, or the count is of a different prompt.
+  const formatted = await ctx.getFormattedChat(
+    messages,
+    null,
+    chatOptions(ctx, settings),
+  );
   const { tokens } = await ctx.tokenize(formatted.prompt);
 
   return tokens.length + images * VISION_MAX_TOKENS;

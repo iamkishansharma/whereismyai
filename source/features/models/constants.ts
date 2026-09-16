@@ -40,4 +40,5 @@ export const DEFAULT_GENERATION_SETTINGS: GenerationSettings = {
   nPredict: 512,
   nCtx: 2048,
   nGpuLayers: 99,
+  enableThinking: true,
 };

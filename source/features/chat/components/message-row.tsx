@@ -1,13 +1,15 @@
-import { memo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Clipboard, Image, Share, StyleSheet, View } from 'react-native';
 import { Avatar, IconButton, Text, useTheme } from 'react-native-paper';
 
 import ImageViewer from '@/shared/ui/image-viewer';
+import { splitReasoning } from '@/core/llama/reasoning';
 import { useIsTrimPoint, useMessage } from '../store';
 import { useMessageModelName } from './use-message-model-name';
 import MessageStats from './message-stats';
 import { useShowGenerationStats } from '@/features/settings/store';
 import MarkdownMessage, { PlainMessage } from './markdown-message';
+import ThinkingBlock from './thinking-block';
 import TypingIndicator from './typing-indicator';
 
 /**
@@ -35,13 +37,21 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
   const message = useMessage(messageId);
   const isTrimPoint = useIsTrimPoint(messageId);
   const modelTitle = useMessageModelName(message?.modelId, message?.modelName);
-  const { colors, dark } = useTheme();
+  const { colors } = useTheme();
   const [showStats] = useShowGenerationStats();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
-  const logo = dark
-    ? require('@/assets/wima-logo-tr-light.png')
-    : require('@/assets/wima-logo-tr-dark.png');
+  // Always the light mark on a dark tile, as in the drawer: the avatar is a
+  // fixed badge rather than themed surface, so it must not follow the theme.
+  const logo = require('@/assets/wima-logo-tr-light.png');
+
+  // What is stored is exactly what the model produced, markers and all. The
+  // answer is separated here rather than on the way in, so replies already in
+  // the database render correctly too.
+  const { reasoning, content: answer } = useMemo(
+    () => splitReasoning(message?.content ?? ''),
+    [message?.content],
+  );
 
   // Deleting a conversation unmounts its rows a frame after the message is
   // gone from the store, so this has to come before any field is read.
@@ -49,10 +59,12 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
     return null;
   }
 
+  // Reasoning on its own still counts as something to show: a reply stopped
+  // mid-thought has no answer, but it is not an empty failure either.
+  const hasOutput = Boolean(answer || reasoning);
   const failed =
-    (message.status === 'error' || message.status === 'stopped') &&
-    !message.content;
-  const streamingComplete = message.content && message.status !== 'streaming';
+    (message.status === 'error' || message.status === 'stopped') && !hasOutput;
+  const streamingComplete = hasOutput && message.status !== 'streaming';
   const isUser = message.role === 'user';
   const isStreaming = message.status === 'streaming';
 
@@ -107,15 +119,21 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
           paddingHorizontal: 16,
         }}
       >
-        <Avatar.Image size={28} source={logo} />
+        <Avatar.Image size={28} source={logo} style={styles.avatar} />
         <Text variant="bodySmall" style={{ color: colors.onSurfaceVariant }}>
           {modelTitle}
         </Text>
       </View>
       <View style={styles.assistantRow}>
-        {message.content ? (
-          <MarkdownMessage markdown={message.content} streaming={isStreaming} />
-        ) : failed ? null : (
+        <ThinkingBlock
+          reasoning={reasoning}
+          streaming={isStreaming}
+          answerStarted={Boolean(answer)}
+        />
+
+        {answer ? (
+          <MarkdownMessage markdown={answer} streaming={isStreaming} />
+        ) : failed || reasoning ? null : (
           <TypingIndicator />
         )}
 
@@ -144,43 +162,30 @@ const MessageRow = ({ messageId }: { messageId: string }) => {
       </View>
       {!failed && streamingComplete && (
         <View style={styles.messageActionsRow}>
-          {message.content && (
-            <IconButton
-              style={{ margin: 0 }}
-              icon="clipboard-text-outline"
-              size={18}
-              onPress={() => {
-                Clipboard.setString(message.content);
-              }}
-            />
-          )}
-          {message.content && (
-            <IconButton
-              style={{ margin: 0 }}
-              icon="share-outline"
-              size={18}
-              onPress={() => {
-                Share.share({
-                  message: message.content,
-                  title: 'Message from WhereIsMyAI',
-                });
-              }}
-            />
-          )}
-          {/* TODO :: Handle thumbs up action */}
-          <IconButton
-            style={{ margin: 0, display: 'none' }}
-            icon="thumb-up-outline"
-            size={18}
-            onPress={() => {}}
-          />
-          {/* TODO :: Handle thumbs down action */}
-          <IconButton
-            style={{ margin: 0, display: 'none' }}
-            icon="thumb-down-outline"
-            size={18}
-            onPress={() => {}}
-          />
+          {/* The answer, never the narration. */}
+          {answer ? (
+            <>
+              <IconButton
+                style={styles.action}
+                icon="clipboard-text-outline"
+                size={18}
+                accessibilityLabel="Copy reply"
+                onPress={() => Clipboard.setString(answer)}
+              />
+              <IconButton
+                style={styles.action}
+                icon="share-outline"
+                size={18}
+                accessibilityLabel="Share reply"
+                onPress={() =>
+                  Share.share({
+                    message: answer,
+                    title: 'Message from WhereIsMyAI',
+                  })
+                }
+              />
+            </>
+          ) : null}
 
           {showStats && message.stats && <MessageStats stats={message.stats} />}
         </View>
@@ -239,11 +244,18 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontStyle: 'italic',
   },
+  avatar: {
+    backgroundColor: '#000',
+  },
   messageActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 2,
     paddingHorizontal: 16,
     marginTop: 4,
+  },
+  action: {
+    margin: 0,
   },
 });
 

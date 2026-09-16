@@ -1,0 +1,1 @@
+ALTER TABLE `model_settings` ADD `enable_thinking` integer;

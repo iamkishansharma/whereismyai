@@ -6,6 +6,7 @@ import {
   HelperText,
   IconButton,
   List,
+  Switch,
   Text,
   useTheme,
 } from 'react-native-paper';
@@ -19,8 +20,15 @@ import type { GenerationSettings } from '@/types';
 import type { GenerationSettingsScreenProps } from '@/navigation/types';
 import { EnrichedMarkdownTextInput } from 'react-native-enriched-markdown';
 
+/** The settings a slider can drive — everything numeric, and nothing else. */
+type NumericSetting = {
+  [K in keyof GenerationSettings]: GenerationSettings[K] extends number
+    ? K
+    : never;
+}[keyof GenerationSettings];
+
 interface Knob {
-  key: keyof Omit<GenerationSettings, 'systemPrompt'>;
+  key: NumericSetting;
   label: string;
   hint: string;
   min: number;
@@ -206,6 +214,29 @@ const GenerationSettingsScreen = ({ route }: GenerationSettingsScreenProps) => {
             your next message.
           </HelperText>
         </View>
+      </List.Section>
+
+      <Divider />
+
+      <List.Section>
+        <List.Subheader>Reasoning</List.Subheader>
+        <List.Item
+          title="Let this model think"
+          description={
+            'Reasoning models work through a problem before answering. The ' +
+            'thinking is collapsed in the chat, but it still uses the ' +
+            'context window. Ignored by models that do not reason.'
+          }
+          descriptionNumberOfLines={4}
+          left={props => <List.Icon {...props} icon="brain" />}
+          right={() => (
+            <Switch
+              value={settings.enableThinking}
+              onValueChange={enableThinking => patch({ enableThinking })}
+            />
+          )}
+          onPress={() => patch({ enableThinking: !settings.enableThinking })}
+        />
       </List.Section>
 
       <Divider />
