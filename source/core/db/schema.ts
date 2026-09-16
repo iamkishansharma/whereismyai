@@ -55,6 +55,7 @@ export const modelSettings = sqliteTable('model_settings', {
   nPredict: integer('n_predict'),
   nCtx: integer('n_ctx'),
   nGpuLayers: integer('n_gpu_layers'),
+  enableThinking: integer('enable_thinking', { mode: 'boolean' }),
 });
 
 /**

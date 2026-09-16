@@ -67,7 +67,7 @@ export async function buildPrompt(
 
     let measured: number;
     try {
-      measured = await measurePrompt(context, result.messages);
+      measured = await measurePrompt(context, result.messages, settings);
     } catch {
       // Counting is a refinement of the estimate, not a prerequisite.
       break;

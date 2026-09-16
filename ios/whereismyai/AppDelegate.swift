@@ -2,14 +2,15 @@ import UIKit
 import React
 import React_RCTAppDelegate
 import ReactAppDependencyProvider
-import RNBootSplash
 
 @main
 class AppDelegate: UIResponder, UIApplicationDelegate {
-  var window: UIWindow?
-
   var reactNativeDelegate: ReactNativeDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
+
+  // The scene, not the app delegate, owns the window and starts React Native.
+  // Launch options are only handed to us here, so hold them for the scene.
+  var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
 
   func application(
     _ application: UIApplication,
@@ -21,19 +22,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-
-    window = UIWindow(frame: UIScreen.main.bounds)
-
-    factory.startReactNative(
-      withModuleName: "whereismyai",
-      in: window,
-      launchOptions: launchOptions
-    )
-
-    // iOS tears the launch storyboard down once the window is visible. This
-    // re-shows it inside the root view until JS has loaded; without it the app
-    // opens on a white root view and BootSplash.hide() has nothing to hide.
-    RNBootSplash.initWithStoryboard("BootSplash", rootView: window?.rootViewController?.view)
+    self.launchOptions = launchOptions
 
     return true
   }

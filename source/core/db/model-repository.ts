@@ -46,6 +46,7 @@ function toSettings(row: ModelSettingsRow): Partial<GenerationSettings> {
     ['nPredict', row.nPredict],
     ['nCtx', row.nCtx],
     ['nGpuLayers', row.nGpuLayers],
+    ['enableThinking', row.enableThinking],
   ];
 
   return Object.fromEntries(
