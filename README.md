@@ -17,6 +17,14 @@
 See **[FEATURES.md](FEATURES.md)** for the full list, including known limitations and
 what's planned.
 
+## 📲 Download
+
+- **iOS** — [App Store](https://apps.apple.com/us/app/where-is-my-ai/id6817859118) (iPhone and iPad, iOS 15.1 or later)
+- **Android** — [Google Play](https://play.google.com/store/apps/details?id=com.heycode.whereismyai)
+
+Free, no account, no ads. Or build it yourself — see
+[Getting Started](#-getting-started).
+
 ## 📸 Screenshots
 
 <p align="center">
